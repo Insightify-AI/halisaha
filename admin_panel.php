@@ -63,9 +63,9 @@ $stmt->closeCursor();
 
     <!-- Hızlı Menü -->
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-4">
             <a href="admin_tesisler.php" class="text-decoration-none">
-                <div class="card shadow-sm border-0 hover-effect p-4">
+                <div class="card shadow-sm border-0 hover-effect p-4 h-100">
                     <div class="d-flex align-items-center">
                         <div class="bg-warning p-3 rounded-circle text-dark me-3">
                             <i class="fas fa-check-double fa-2x"></i>
@@ -78,9 +78,24 @@ $stmt->closeCursor();
                 </div>
             </a>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
+            <a href="admin_rezervasyonlar.php" class="text-decoration-none">
+                <div class="card shadow-sm border-0 hover-effect p-4 h-100">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary p-3 rounded-circle text-white me-3">
+                            <i class="fas fa-calendar-alt fa-2x"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold text-dark mb-1">Rezervasyonlar</h4>
+                            <p class="text-muted mb-0">Tüm rezervasyonları görüntüle ve yönet.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4">
             <a href="admin_rapor.php" class="text-decoration-none">
-                <div class="card shadow-sm border-0 hover-effect p-4">
+                <div class="card shadow-sm border-0 hover-effect p-4 h-100">
                     <div class="d-flex align-items-center">
                         <div class="bg-danger p-3 rounded-circle text-white me-3">
                             <i class="fas fa-chart-bar fa-2x"></i>

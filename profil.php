@@ -62,80 +62,157 @@ if ($rol == 'musteri') {
                     <h5 class="mb-0 fw-bold text-primary"><i class="fas fa-history me-2"></i>Rezervasyonlarım</h5>
                 </div>
                 <div class="card-body p-0">
-                    <?php if (count($rezervasyonlar) > 0): ?>
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Tarih & Saat</th>
-                                        <th>Tesis & Saha</th>
-                                        <th>Tutar</th>
-                                        <th>Durum</th>
-                                        <th>İşlem</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($rezervasyonlar as $rez): ?>
-                                        <tr>
-                                            <td>
-                                                <div class="fw-bold"><?php echo date("d.m.Y", strtotime($rez['tarih'])); ?></div>
-                                                <small class="text-muted">
-                                                    <?php echo substr($rez['baslangic_saati'], 0, 5) . '-' . substr($rez['bitis_saati'], 0, 5); ?>
-                                                </small>
-                                            </td>
-                                            <td>
-                                                <div class="fw-bold"><?php echo $rez['tesis_adi']; ?></div>
-                                                <small class="text-muted"><?php echo $rez['saha_adi']; ?></small>
-                                            </td>
-                                            <td>
-                                                <span class="text-success fw-bold"><?php echo number_format($rez['tutar'], 0); ?> ₺</span>
-                                            </td>
-                                            <td>
-                                                <?php 
-                                                    $durumRenk = 'secondary';
-                                                    $durumMetin = 'Bilinmiyor';
-                                                    switch($rez['durum']) {
-                                                        case 'onay_bekliyor': $durumRenk='warning text-dark'; $durumMetin='Onay Bekliyor'; break;
-                                                        case 'onaylandi': $durumRenk='success'; $durumMetin='Onaylandı'; break;
-                                                        case 'iptal': $durumRenk='danger'; $durumMetin='İptal Edildi'; break;
-                                                        case 'tamamlandi': $durumRenk='primary'; $durumMetin='Tamamlandı'; break;
-                                                    }
-                                                ?>
-                                                <span class="badge bg-<?php echo $durumRenk; ?>"><?php echo $durumMetin; ?></span>
-                                            </td>
-                                            <td>
-                                                <?php if ($rez['durum'] == 'tamamlandi'): ?>
-                                                    <!-- YORUM BUTONU -->
-                                                    <button class="btn btn-sm btn-warning text-dark fw-bold" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#yorumModal"
-                                                            onclick="yorumModalHazirla(<?php echo $rez['tesis_id']; ?>, '<?php echo htmlspecialchars($rez['tesis_adi'], ENT_QUOTES); ?>')">
-                                                        <i class="fas fa-star me-1"></i> Puan Ver
-                                                    </button>
-                                                    
-                                                    <!-- TEKRAR KİRALA BUTONU -->
-                                                    <a href="rezervasyon_yap.php?saha_id=<?php echo $rez['saha_id']; ?>" class="btn btn-sm btn-outline-primary ms-1" title="Tekrar Kirala">
-                                                        <i class="fas fa-redo"></i>
-                                                    </a>
+                    <?php
+                        // Rezervasyonları Kategorize Et
+                        $aktif_rez = [];
+                        $gecmis_rez = [];
+                        $iptal_rez = [];
 
-                                                <?php elseif ($rez['durum'] == 'onay_bekliyor'): ?>
-                                                    <!-- İPTAL BUTONU -->
-                                                    <button class="btn btn-sm btn-outline-danger" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#iptalModal"
-                                                            onclick="iptalModalHazirla(<?php echo $rez['rezervasyon_id']; ?>)">
-                                                        <i class="fas fa-times me-1"></i> İptal
+                        foreach ($rezervasyonlar as $r) {
+                            if ($r['durum'] == 'iptal') {
+                                $iptal_rez[] = $r;
+                            } elseif ($r['durum'] == 'tamamlandi' || strtotime($r['tarih']) < strtotime(date('Y-m-d'))) {
+                                // Tamamlandı veya tarihi geçmişse geçmişe at
+                                $gecmis_rez[] = $r;
+                            } else {
+                                // Gelecek ve onaylı/bekleyen
+                                $aktif_rez[] = $r;
+                            }
+                        }
+                    ?>
+
+                    <!-- TAB MENÜSÜ -->
+                    <ul class="nav nav-tabs nav-fill mb-3" id="rezTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold" id="aktif-tab" data-bs-toggle="tab" data-bs-target="#aktif" type="button" role="tab">
+                                <i class="fas fa-calendar-check me-2"></i>Aktif
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold" id="gecmis-tab" data-bs-toggle="tab" data-bs-target="#gecmis" type="button" role="tab">
+                                <i class="fas fa-history me-2"></i>Geçmiş
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold text-danger" id="iptal-tab" data-bs-toggle="tab" data-bs-target="#iptal" type="button" role="tab">
+                                <i class="fas fa-ban me-2"></i>İptal
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- TAB İÇERİKLERİ -->
+                    <div class="tab-content" id="rezTabsContent">
+                        
+                        <!-- 1. AKTİF REZERVASYONLAR -->
+                        <div class="tab-pane fade show active" id="aktif" role="tabpanel">
+                            <?php if (count($aktif_rez) > 0): ?>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Tarih</th>
+                                                <th>Tesis</th>
+                                                <th>Durum</th>
+                                                <th>İşlem</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($aktif_rez as $rez): ?>
+                                                <tr>
+                                                    <td>
+                                                        <div class="fw-bold"><?php echo date("d.m.Y", strtotime($rez['tarih'])); ?></div>
+                                                        <small class="text-muted"><?php echo substr($rez['baslangic_saati'], 0, 5); ?></small>
+                                                    </td>
+                                                    <td>
+                                                        <div class="fw-bold"><?php echo $rez['tesis_adi']; ?></div>
+                                                        <small class="text-muted"><?php echo $rez['saha_adi']; ?></small>
+                                                    </td>
+                                                    <td>
+                                                        <?php if($rez['durum'] == 'onay_bekliyor'): ?>
+                                                            <span class="badge bg-warning text-dark">Onay Bekliyor</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-success">Onaylandı</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php if($rez['durum'] == 'onay_bekliyor'): ?>
+                                                            <button class="btn btn-sm btn-outline-danger" 
+                                                                    data-bs-toggle="modal" data-bs-target="#iptalModal"
+                                                                    onclick="iptalModalHazirla(<?php echo $rez['rezervasyon_id']; ?>)">
+                                                                <i class="fas fa-times"></i> İptal
+                                                            </button>
+                                                        <?php else: ?>
+                                                            <small class="text-muted">İşlem Yok</small>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php else: ?>
+                                <div class="text-center py-4 text-muted">Aktif rezervasyonunuz bulunmuyor.</div>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- 2. GEÇMİŞ REZERVASYONLAR -->
+                        <div class="tab-pane fade" id="gecmis" role="tabpanel">
+                            <?php if (count($gecmis_rez) > 0): ?>
+                                <div class="list-group list-group-flush">
+                                    <?php foreach ($gecmis_rez as $rez): ?>
+                                        <div class="list-group-item p-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h6 class="fw-bold mb-1">
+                                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                                        <?php echo $rez['tesis_adi']; ?>
+                                                    </h6>
+                                                    <small class="text-muted">
+                                                        <i class="far fa-calendar-alt me-1"></i> <?php echo date("d.m.Y", strtotime($rez['tarih'])); ?> 
+                                                        <i class="far fa-clock ms-2 me-1"></i> <?php echo substr($rez['baslangic_saati'], 0, 5); ?>
+                                                    </small>
+                                                </div>
+                                                <div class="text-end">
+                                                    <button class="btn btn-sm btn-warning text-dark fw-bold mb-1" 
+                                                            data-bs-toggle="modal" data-bs-target="#yorumModal"
+                                                            onclick="yorumModalHazirla(<?php echo $rez['tesis_id']; ?>, '<?php echo htmlspecialchars($rez['tesis_adi'], ENT_QUOTES); ?>')">
+                                                        <i class="fas fa-star"></i> Puanla
                                                     </button>
-                                                <?php else: ?>
-                                                    <span class="text-muted small">-</span>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
+                                                    <br>
+                                                    <a href="rezervasyon_yap.php?saha_id=<?php echo $rez['saha_id']; ?>" class="btn btn-sm btn-outline-primary" title="Tekrar Kirala">
+                                                        <i class="fas fa-redo"></i> Tekrar
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
                                     <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                            </div>
-            </div>
+                                </div>
+                            <?php else: ?>
+                                <div class="text-center py-4 text-muted">Geçmiş maç kaydı bulunamadı.</div>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- 3. İPTAL EDİLENLER -->
+                        <div class="tab-pane fade" id="iptal" role="tabpanel">
+                            <?php if (count($iptal_rez) > 0): ?>
+                                <ul class="list-group list-group-flush">
+                                    <?php foreach ($iptal_rez as $rez): ?>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center opacity-75">
+                                            <div>
+                                                <span class="text-decoration-line-through fw-bold"><?php echo $rez['tesis_adi']; ?></span>
+                                                <br>
+                                                <small><?php echo date("d.m.Y", strtotime($rez['tarih'])); ?></small>
+                                            </div>
+                                            <span class="badge bg-danger">İptal Edildi</span>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php else: ?>
+                                <div class="text-center py-4 text-muted">İptal edilmiş rezervasyon yok.</div>
+                            <?php endif; ?>
+                        </div>
+
+                    </div>
 
             <!-- FAVORİ TESİSLERİM -->
             <div class="card shadow-sm border-0 mt-4">
@@ -177,13 +254,7 @@ if ($rol == 'musteri') {
                     <?php endif; ?>
                 </div>
             </div>
-                    <?php else: ?>
-                        <div class="text-center py-5">
-                            <img src="https://cdn-icons-png.flaticon.com/512/7486/7486747.png" width="80" class="opacity-50 mb-3">
-                            <p class="text-muted">Henüz hiç rezervasyon yapmadınız.</p>
-                            <a href="index.php" class="btn btn-primary">Hemen Saha Ara</a>
-                        </div>
-                    <?php endif; ?>
+
                 </div>
             </div>
         </div>
