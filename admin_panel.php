@@ -13,6 +13,12 @@ $stmt = $pdo->prepare("CALL sp_AdminIstatistik()");
 $stmt->execute();
 $istatistik = $stmt->fetch();
 $stmt->closeCursor();
+
+// Son Hareketleri Çek
+$stmt = $pdo->prepare("CALL sp_AdminSonHareketler()");
+$stmt->execute();
+$sonHareketler = $stmt->fetchAll();
+$stmt->closeCursor();
 ?>
 
 <div class="container mb-5">
@@ -62,8 +68,8 @@ $stmt->closeCursor();
     </div>
 
     <!-- Hızlı Menü -->
-    <div class="row">
-        <div class="col-md-4">
+    <div class="row mb-5">
+        <div class="col-md-3">
             <a href="admin_tesisler.php" class="text-decoration-none">
                 <div class="card shadow-sm border-0 hover-effect p-4 h-100">
                     <div class="d-flex align-items-center">
@@ -71,14 +77,14 @@ $stmt->closeCursor();
                             <i class="fas fa-check-double fa-2x"></i>
                         </div>
                         <div>
-                            <h4 class="fw-bold text-dark mb-1">Tesis Başvuruları</h4>
-                            <p class="text-muted mb-0">Bekleyen tesisleri onayla veya reddet.</p>
+                            <h5 class="fw-bold text-dark mb-1">Tesis Onayı</h5>
+                            <p class="text-muted small mb-0">Bekleyen başvurular.</p>
                         </div>
                     </div>
                 </div>
             </a>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <a href="admin_rezervasyonlar.php" class="text-decoration-none">
                 <div class="card shadow-sm border-0 hover-effect p-4 h-100">
                     <div class="d-flex align-items-center">
@@ -86,14 +92,29 @@ $stmt->closeCursor();
                             <i class="fas fa-calendar-alt fa-2x"></i>
                         </div>
                         <div>
-                            <h4 class="fw-bold text-dark mb-1">Rezervasyonlar</h4>
-                            <p class="text-muted mb-0">Tüm rezervasyonları görüntüle ve yönet.</p>
+                            <h5 class="fw-bold text-dark mb-1">Rezervasyonlar</h5>
+                            <p class="text-muted small mb-0">Tüm maçları yönet.</p>
                         </div>
                     </div>
                 </div>
             </a>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <a href="admin_kullanicilar.php" class="text-decoration-none">
+                <div class="card shadow-sm border-0 hover-effect p-4 h-100">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-info p-3 rounded-circle text-white me-3">
+                            <i class="fas fa-users-cog fa-2x"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-dark mb-1">Kullanıcılar</h5>
+                            <p class="text-muted small mb-0">Üyeleri listele/sil.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
             <a href="admin_rapor.php" class="text-decoration-none">
                 <div class="card shadow-sm border-0 hover-effect p-4 h-100">
                     <div class="d-flex align-items-center">
@@ -101,12 +122,55 @@ $stmt->closeCursor();
                             <i class="fas fa-chart-bar fa-2x"></i>
                         </div>
                         <div>
-                            <h4 class="fw-bold text-dark mb-1">Sistem Raporları</h4>
-                            <p class="text-muted mb-0">Şehir bazlı doluluk ve puan analizleri.</p>
+                            <h5 class="fw-bold text-dark mb-1">Raporlar</h5>
+                            <p class="text-muted small mb-0">Sistem analizleri.</p>
                         </div>
                     </div>
                 </div>
             </a>
+        </div>
+    </div>
+
+    <!-- Son Hareketler -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white fw-bold py-3">
+            <i class="fas fa-history me-2 text-secondary"></i>Son Rezervasyon Hareketleri
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Müşteri</th>
+                        <th>Tesis</th>
+                        <th>Durum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if(count($sonHareketler) > 0): ?>
+                        <?php foreach ($sonHareketler as $h): ?>
+                            <tr>
+                                <td><?php echo date("d.m.Y H:i", strtotime($h['tarih'])); ?></td>
+                                <td><?php echo $h['musteri_ad'] . ' ' . $h['musteri_soyad']; ?></td>
+                                <td><?php echo $h['tesis_adi']; ?></td>
+                                <td>
+                                    <?php if($h['durum'] == 'onay_bekliyor'): ?>
+                                        <span class="badge bg-warning text-dark">Bekliyor</span>
+                                    <?php elseif($h['durum'] == 'onaylandi'): ?>
+                                        <span class="badge bg-success">Onaylandı</span>
+                                    <?php elseif($h['durum'] == 'iptal'): ?>
+                                        <span class="badge bg-danger">İptal</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary"><?php echo $h['durum']; ?></span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="4" class="text-center text-muted py-3">Henüz hareket yok.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

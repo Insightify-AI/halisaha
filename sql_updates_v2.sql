@@ -129,3 +129,38 @@ BEGIN
     WHERE rezervasyon_id = p_rezervasyon_id;
 END //
 DELIMITER ;
+
+-- 11. STORED PROCEDURE: Admin Kullanıcıları Getir
+DELIMITER //
+DROP PROCEDURE IF EXISTS sp_AdminKullanicilariGetir //
+CREATE PROCEDURE sp_AdminKullanicilariGetir()
+BEGIN
+    SELECT * FROM Kullanicilar ORDER BY kayit_tarihi DESC;
+END //
+DELIMITER ;
+
+-- 12. STORED PROCEDURE: Admin Kullanıcı Sil
+DELIMITER //
+DROP PROCEDURE IF EXISTS sp_AdminKullaniciSil //
+CREATE PROCEDURE sp_AdminKullaniciSil(IN p_kullanici_id INT)
+BEGIN
+    DELETE FROM Kullanicilar WHERE kullanici_id = p_kullanici_id;
+END //
+DELIMITER ;
+
+-- 13. STORED PROCEDURE: Admin Son Hareketler (Dashboard)
+DELIMITER //
+DROP PROCEDURE IF EXISTS sp_AdminSonHareketler //
+CREATE PROCEDURE sp_AdminSonHareketler()
+BEGIN
+    SELECT r.tarih, r.durum, 
+           m.ad as musteri_ad, m.soyad as musteri_soyad,
+           t.tesis_adi
+    FROM Rezervasyonlar r
+    JOIN Kullanicilar m ON r.musteri_id = m.kullanici_id
+    JOIN Sahalar s ON r.saha_id = s.saha_id
+    JOIN Tesisler t ON s.tesis_id = t.tesis_id
+    ORDER BY r.rezervasyon_id DESC
+    LIMIT 5;
+END //
+DELIMITER ;

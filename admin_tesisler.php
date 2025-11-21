@@ -63,22 +63,9 @@ $stmt->closeCursor();
                                     <small><?php echo $t['sahip_telefon']; ?></small>
                                 </td>
                                 <td>
-                                    <div class="d-flex gap-2">
-                                        <form method="POST">
-                                            <input type="hidden" name="tesis_id" value="<?php echo $t['tesis_id']; ?>">
-                                            <input type="hidden" name="islem" value="onayla">
-                                            <button class="btn btn-success btn-sm">
-                                                <i class="fas fa-check me-1"></i> Onayla
-                                            </button>
-                                        </form>
-                                        <form method="POST" onsubmit="return confirm('Reddetmek istediğine emin misin?');">
-                                            <input type="hidden" name="tesis_id" value="<?php echo $t['tesis_id']; ?>">
-                                            <input type="hidden" name="islem" value="reddet">
-                                            <button class="btn btn-danger btn-sm">
-                                                <i class="fas fa-times me-1"></i> Reddet
-                                            </button>
-                                        </form>
-                                    </div>
+                                    <a href="admin_tesis_detay.php?id=<?php echo $t['tesis_id']; ?>" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-eye me-1"></i> Detay & İşlem
+                                    </a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
