@@ -10,7 +10,7 @@ if (!isset($_SESSION['kullanici_id']) || $_SESSION['rol'] != 'tesis_sahibi') {
 
 // Şehirleri ve Özellikleri Çek (Form için)
 $sehirler = $pdo->query("SELECT * FROM Sehirler ORDER BY plaka_kodu ASC")->fetchAll();
-$tumOzellikler = $pdo->query("SELECT * FROM Ozellikler")->fetchAll();
+$tumOzellikler = $pdo->query("SELECT MIN(ozellik_id) as ozellik_id, ozellik_adi, MIN(ikon_kodu) as ikon_kodu FROM Ozellikler GROUP BY ozellik_adi")->fetchAll();
 
 $mesaj = "";
 

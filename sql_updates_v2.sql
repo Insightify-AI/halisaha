@@ -13,15 +13,13 @@ CREATE TABLE IF NOT EXISTS Favoriler (
 CREATE TABLE IF NOT EXISTS Ozellikler (
     ozellik_id INT AUTO_INCREMENT PRIMARY KEY,
     ozellik_adi VARCHAR(50) NOT NULL,
-    ikon_kodu VARCHAR(50) NOT NULL
+    ikon_kodu VARCHAR(50) NOT NULL,
+    UNIQUE KEY unique_ozellik_adi (ozellik_adi)
 );
 
--- Varsayılan Özellikleri Ekle
-INSERT INTO Ozellikler (ozellik_adi, ikon_kodu) 
-SELECT * FROM (SELECT 'Otopark', 'fa-parking') AS tmp
-WHERE NOT EXISTS (SELECT ozellik_adi FROM Ozellikler WHERE ozellik_adi = 'Otopark') LIMIT 1;
-
-INSERT INTO Ozellikler (ozellik_adi, ikon_kodu) VALUES 
+-- Varsayılan Özellikleri Ekle (IGNORE ile çakışmaları atla)
+INSERT IGNORE INTO Ozellikler (ozellik_adi, ikon_kodu) VALUES 
+('Otopark', 'fa-parking'),
 ('Duş', 'fa-shower'),
 ('Soyunma Odası', 'fa-tshirt'),
 ('Kafeterya', 'fa-coffee'),

@@ -9,7 +9,8 @@ $ilce_id = isset($_GET['ilce_id']) ? (int)$_GET['ilce_id'] : 0;
 $secilen_ozellikler = isset($_GET['ozellikler']) ? $_GET['ozellikler'] : [];
 
 // 2. VERİTABANINDAN TÜM ÖZELLİKLERİ ÇEK (Checkboxları oluşturmak için)
-$tumOzellikler = $pdo->query("SELECT * FROM Ozellikler")->fetchAll();
+// ONLY_FULL_GROUP_BY moduna uygun olması için MIN/MAX kullanıyoruz
+$tumOzellikler = $pdo->query("SELECT MIN(ozellik_id) as ozellik_id, ozellik_adi, MIN(ikon_kodu) as ikon_kodu FROM Ozellikler GROUP BY ozellik_adi")->fetchAll();
 
 // 3. BAŞLIK OLUŞTURMA
 $baslik = "Tüm Tesisler";
