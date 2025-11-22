@@ -78,6 +78,12 @@ $stmt->execute([$tesis_id, $currentUserId]);
 $result = $stmt->fetch();
 $kullaniciYorumYapabilir = ($result['rezervasyon_sayisi'] > 0);
 
+// 4. GAMIFICATION: Tesis Ziyaret Görevi
+if (isset($_SESSION['kullanici_id']) && $_SESSION['rol'] == 'musteri') {
+    require_once 'includes/QuestService.php';
+    $questService = new QuestService($pdo);
+    $questService->updateQuestProgress($_SESSION['kullanici_id'], 'tesis_ziyaret_3');
+}
 
 ?>
 

@@ -87,6 +87,12 @@ $ozellikStats = $pdo->query("
     ORDER BY tesis_sayisi DESC
     LIMIT 4
 ")->fetchAll();
+
+// Haftalık Liderler
+$haftalikLiderler = $pdo->query("
+    SELECT * FROM v_HaftalikPuanlar 
+    LIMIT 5
+")->fetchAll();
 ?>
 
 <!-- HERO SECTION & STATS -->
@@ -233,6 +239,31 @@ $ozellikStats = $pdo->query("
         <!-- SAĞ KOLON (YAN BİLEŞENLER) -->
         <div class="col-lg-4">
             
+            <!-- HAFTALIK LİDERLER -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark fw-bold">
+                    <i class="fas fa-trophy me-2"></i>Haftanın Liderleri
+                </div>
+                <ul class="list-group list-group-flush">
+                    <?php foreach ($haftalikLiderler as $index => $lider): ?>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-<?php echo $index == 0 ? 'warning' : ($index == 1 ? 'secondary' : ($index == 2 ? 'danger' : 'light text-dark border')); ?> me-2 rounded-pill" style="width: 25px;">
+                                    <?php echo $index + 1; ?>
+                                </span>
+                                <div class="fw-bold">
+                                    <?php echo htmlspecialchars($lider['ad'] . ' ' . substr($lider['soyad'], 0, 1) . '.'); ?>
+                                </div>
+                            </div>
+                            <span class="badge bg-primary rounded-pill"><?php echo $lider['haftalik_puan']; ?> P</span>
+                        </li>
+                    <?php endforeach; ?>
+                    <?php if (count($haftalikLiderler) == 0): ?>
+                        <li class="list-group-item text-center text-muted small">Henüz veri yok.</li>
+                    <?php endif; ?>
+                </ul>
+            </div>
+
             <!-- 7. ŞU ANDA MÜSAİT -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-success text-white fw-bold">
