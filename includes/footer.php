@@ -1,10 +1,14 @@
     <!-- İçerik Container Bitişi -->
 </div>
 
-<footer class="bg-dark text-white text-center py-3 mt-5">
-    <div class="container">
-        <p class="mb-0">&copy; <?php echo date("Y"); ?> İstün Mühendislik - Halı Saha Rezervasyon Sistemi</p>
-        <small class="text-muted">Proje Grubu: Murat, Muhammet, Fatih, Yusuf, Eren</small>
+<!-- Footer -->
+<footer class="bg-dark text-white py-4 mt-5">
+    <div class="container text-center">
+        <p class="mb-1">&copy; <?php echo date("Y"); ?> Halı Saha Rezervasyon Sistemi. Tüm hakları saklıdır.</p>
+        <p class="mb-0">
+            <span class="text-light">Powered by</span> 
+            <strong class="text-info" style="font-size: 1.1em;">Insightify AI</strong>
+        </p>
     </div>
 </footer>
 

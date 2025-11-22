@@ -24,6 +24,21 @@ if ($rol == 'musteri') {
     $stmtR->execute([$musteri_id]);
     $rezervasyonlar = $stmtR->fetchAll();
     $stmtR->closeCursor();
+    
+    // Kullanıcının Yorumlarını Çek (Tesis ID'ye göre)
+    $stmt = $pdo->prepare("
+        SELECT yorum_id, tesis_id, puan, yorum_metni, resim_yolu, tarih 
+        FROM Yorumlar 
+        WHERE musteri_id = ?
+    ");
+    $stmt->execute([$musteri_id]);
+    $kullanici_yorumlari = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Yorumları tesis_id'ye göre indeksle (kolay erişim için)
+    $yorumlar_map = [];
+    foreach ($kullanici_yorumlari as $yorum) {
+        $yorumlar_map[$yorum['tesis_id']] = $yorum;
+    }
 
     // 4. GAMIFICATION VERİLERİNİ ÇEK
     require_once 'includes/GamificationService.php';
@@ -82,6 +97,21 @@ if ($rol == 'musteri') {
     <?php if (isset($_GET['msg']) && $_GET['msg'] == 'yorum_basarili'): ?>
         <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
             <i class="fas fa-check-circle me-2"></i> Harika! Yorumun kaydedildi.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+    
+    <?php if (isset($_GET['msg']) && $_GET['msg'] == 'yorum_guncellendi'): ?>
+        <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+            <i class="fas fa-check-circle me-2"></i> Yorumun başarıyla güncellendi!
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+    
+    <?php if (isset($_GET['msg']) && $_GET['msg'] == 'hata'): ?>
+        <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i> 
+            <?php echo isset($_GET['error']) ? htmlspecialchars($_GET['error']) : 'Bir hata oluştu!'; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     <?php endif; ?>
@@ -264,9 +294,14 @@ if ($rol == 'musteri') {
                             <?php if (count($gecmis_rez) > 0): ?>
                                 <div class="list-group list-group-flush">
                                     <?php foreach ($gecmis_rez as $rez): ?>
+                                        <?php 
+                                            // Bu rezervasyonun tesisi için yorum var mı kontrol et
+                                            $yorum_var = isset($yorumlar_map[$rez['tesis_id']]);
+                                            $yorum = $yorum_var ? $yorumlar_map[$rez['tesis_id']] : null;
+                                        ?>
                                         <div class="list-group-item p-3">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div>
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
                                                     <h6 class="fw-bold mb-1">
                                                         <i class="fas fa-check-circle text-success me-2"></i>
                                                         <?php echo $rez['tesis_adi']; ?>
@@ -275,13 +310,51 @@ if ($rol == 'musteri') {
                                                         <i class="far fa-calendar-alt me-1"></i> <?php echo date("d.m.Y", strtotime($rez['tarih'])); ?> 
                                                         <i class="far fa-clock ms-2 me-1"></i> <?php echo substr($rez['baslangic_saati'], 0, 5); ?>
                                                     </small>
+                                                    
+                                                    <?php if ($yorum_var): ?>
+                                                        <!-- Yorum Yapılmış - Göster -->
+                                                        <div class="mt-3 p-3 bg-light rounded border-start border-4 border-warning">
+                                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                <div>
+                                                                    <strong class="text-warning">Değerlendirmeniz:</strong>
+                                                                    <div class="mt-1">
+                                                                        <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                                            <i class="fas fa-star <?php echo $i <= $yorum['puan'] ? 'text-warning' : 'text-muted'; ?> small"></i>
+                                                                        <?php endfor; ?>
+                                                                    </div>
+                                                                </div>
+                                                                <small class="text-muted"><?php echo date('d.m.Y', strtotime($yorum['tarih'])); ?></small>
+                                                            </div>
+                                                            <p class="mb-2 small"><?php echo htmlspecialchars($yorum['yorum_metni']); ?></p>
+                                                            <?php if ($yorum['resim_yolu']): ?>
+                                                                <img src="<?php echo $yorum['resim_yolu']; ?>" class="img-thumbnail mt-2" style="max-height: 80px; cursor: pointer;" 
+                                                                     onclick="window.open('<?php echo $yorum['resim_yolu']; ?>', '_blank')">
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    <?php endif; ?>
                                                 </div>
-                                                <div class="text-end">
-                                                    <button class="btn btn-sm btn-warning text-dark fw-bold mb-1" 
-                                                            data-bs-toggle="modal" data-bs-target="#yorumModal"
-                                                            onclick="yorumModalHazirla(<?php echo $rez['tesis_id']; ?>, '<?php echo htmlspecialchars($rez['tesis_adi'], ENT_QUOTES); ?>')">
-                                                        <i class="fas fa-star"></i> Puanla
-                                                    </button>
+                                                <div class="text-end ms-3">
+                                                    <?php if ($yorum_var): ?>
+                                                        <!-- Düzenle Butonu -->
+                                                        <button class="btn btn-sm btn-outline-warning fw-bold mb-1 yorum-duzenle-btn" 
+                                                                data-bs-toggle="modal" data-bs-target="#yorumModal"
+                                                                data-yorum-id="<?php echo $yorum['yorum_id']; ?>"
+                                                                data-tesis-id="<?php echo $rez['tesis_id']; ?>"
+                                                                data-tesis-adi="<?php echo htmlspecialchars($rez['tesis_adi']); ?>"
+                                                                data-puan="<?php echo $yorum['puan']; ?>"
+                                                                data-yorum-metni="<?php echo htmlspecialchars($yorum['yorum_metni']); ?>"
+                                                                data-resim-yolu="<?php echo $yorum['resim_yolu']; ?>">
+                                                            <i class="fas fa-edit"></i> Düzenle
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <!-- Puanla Butonu -->
+                                                        <button class="btn btn-sm btn-warning text-dark fw-bold mb-1 yorum-ekle-btn" 
+                                                                data-bs-toggle="modal" data-bs-target="#yorumModal"
+                                                                data-tesis-id="<?php echo $rez['tesis_id']; ?>"
+                                                                data-tesis-adi="<?php echo htmlspecialchars($rez['tesis_adi']); ?>">
+                                                            <i class="fas fa-star"></i> Puanla
+                                                        </button>
+                                                    <?php endif; ?>
                                                     <br>
                                                     <a href="rezervasyon_yap.php?saha_id=<?php echo $rez['saha_id']; ?>" class="btn btn-sm btn-outline-primary" title="Tekrar Kirala">
                                                         <i class="fas fa-redo"></i> Tekrar
@@ -524,13 +597,14 @@ if ($rol == 'musteri') {
 <div class="modal fade" id="yorumModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form action="yorum_kaydet.php" method="POST">
+      <form action="yorum_kaydet.php" method="POST" enctype="multipart/form-data" id="yorumForm">
           <div class="modal-header bg-warning">
             <h5 class="modal-title fw-bold text-dark"><i class="fas fa-star me-2"></i>Değerlendir & Yorum Yap</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
             <input type="hidden" name="tesis_id" id="modalTesisId">
+            <input type="hidden" name="yorum_id" id="modalYorumId">
             
             <p class="text-center fs-5">
                 <strong id="modalTesisAdi" class="text-primary">Tesis Adı</strong> deneyimin nasıldı?
@@ -538,7 +612,7 @@ if ($rol == 'musteri') {
 
             <div class="mb-3 text-center">
                 <label class="form-label d-block text-muted">Puanın</label>
-                <select name="puan" class="form-select form-select-lg text-center mx-auto" style="width: 150px;" required>
+                <select name="puan" id="modalPuan" class="form-select form-select-lg text-center mx-auto" style="width: 150px;" required>
                     <option value="5">⭐⭐⭐⭐⭐ (5)</option>
                     <option value="4">⭐⭐⭐⭐ (4)</option>
                     <option value="3">⭐⭐⭐ (3)</option>
@@ -549,12 +623,32 @@ if ($rol == 'musteri') {
 
             <div class="mb-3">
                 <label class="form-label">Yorumun</label>
-                <textarea name="yorum" class="form-control" rows="3" placeholder="Zemin nasıldı? Soyunma odaları temiz miydi?" required></textarea>
+                <textarea name="yorum" id="modalYorum" class="form-control" rows="3" placeholder="Zemin nasıldı? Soyunma odaları temiz miydi?" required></textarea>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Fotoğraf Ekle (İsteğe bağlı)</label>
+                <input type="file" name="resim" id="modalResim" class="form-control" accept="image/jpeg,image/jpg,image/png,image/webp">
+                <small class="text-muted">Max 5MB - JPG, JPEG, PNG, WEBP</small>
+                
+                <!-- Resim Önizleme -->
+                <div id="resimOnizleme" class="mt-2" style="display: none;">
+                    <img id="onizlemeImg" src="" class="img-thumbnail" style="max-height: 150px;">
+                    <button type="button" class="btn btn-sm btn-danger ms-2" onclick="resimTemizle()">
+                        <i class="fas fa-times"></i> Kaldır
+                    </button>
+                </div>
+                
+                <!-- Mevcut Resim (Düzenleme modunda) -->
+                <div id="mevcutResim" class="mt-2" style="display: none;">
+                    <p class="small text-muted mb-1">Mevcut resim:</p>
+                    <img id="mevcutResimImg" src="" class="img-thumbnail" style="max-height: 100px;">
+                </div>
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Vazgeç</button>
-            <button type="submit" class="btn btn-primary">Yorumu Gönder</button>
+            <button type="submit" class="btn btn-primary" id="yorumSubmitBtn">Yorumu Gönder</button>
           </div>
       </form>
     </div>
@@ -563,10 +657,131 @@ if ($rol == 'musteri') {
 
 <!-- JAVASCRIPT (Sayfanın en altında) -->
 <script>
+// Yeni Yorum Modal Hazırlama
 function yorumModalHazirla(id, ad) {
+    const form = document.getElementById('yorumForm');
+    const submitBtn = document.getElementById('yorumSubmitBtn');
+    
+    // Form action'ı yeni yorum için ayarla
+    form.action = 'yorum_kaydet.php';
+    
+    // Hidden alanları ayarla
     document.getElementById('modalTesisId').value = id;
+    document.getElementById('modalYorumId').value = '';
     document.getElementById('modalTesisAdi').innerText = ad;
+    
+    // Form alanlarını temizle
+    document.getElementById('modalPuan').value = '5';
+    document.getElementById('modalYorum').value = '';
+    document.getElementById('modalResim').value = '';
+    
+    // Önizleme ve mevcut resmi gizle
+    document.getElementById('resimOnizleme').style.display = 'none';
+    document.getElementById('mevcutResim').style.display = 'none';
+    
+    // Buton metnini ayarla
+    submitBtn.innerText = 'Yorumu Gönder';
 }
+
+// Yorum Düzenleme Modal Hazırlama
+function yorumDuzenleModalHazirla(yorumId, tesisId, tesisAdi, puan, yorumMetni, resimYolu) {
+    const form = document.getElementById('yorumForm');
+    const submitBtn = document.getElementById('yorumSubmitBtn');
+    
+    // Form action'ı düzenleme için ayarla
+    form.action = 'yorum_guncelle.php';
+    
+    // Hidden alanları ayarla
+    document.getElementById('modalTesisId').value = tesisId;
+    document.getElementById('modalYorumId').value = yorumId;
+    document.getElementById('modalTesisAdi').innerText = tesisAdi;
+    
+    // Form alanlarını doldur
+    document.getElementById('modalPuan').value = puan;
+    document.getElementById('modalYorum').value = yorumMetni;
+    document.getElementById('modalResim').value = '';
+    
+    // Önizlemeyi gizle
+    document.getElementById('resimOnizleme').style.display = 'none';
+    
+    // Mevcut resmi göster (varsa)
+    if (resimYolu && resimYolu !== 'null' && resimYolu !== '') {
+        document.getElementById('mevcutResimImg').src = resimYolu;
+        document.getElementById('mevcutResim').style.display = 'block';
+    } else {
+        document.getElementById('mevcutResim').style.display = 'none';
+    }
+    
+    // Buton metnini ayarla
+    submitBtn.innerText = 'Yorumu Güncelle';
+}
+
+// Resim Önizleme
+document.getElementById('modalResim')?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        // Dosya boyutu kontrolü (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Dosya boyutu 5MB\'dan büyük olamaz!');
+            e.target.value = '';
+            return;
+        }
+        
+        // Dosya formatı kontrolü
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('Sadece JPG, JPEG, PNG ve WEBP formatları kabul edilir!');
+            e.target.value = '';
+            return;
+        }
+        
+        // Önizleme göster
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            document.getElementById('onizlemeImg').src = event.target.result;
+            document.getElementById('resimOnizleme').style.display = 'block';
+            document.getElementById('mevcutResim').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+// Resim Temizleme
+function resimTemizle() {
+    document.getElementById('modalResim').value = '';
+    document.getElementById('resimOnizleme').style.display = 'none';
+    
+    // Düzenleme modundaysa mevcut resmi tekrar göster
+    const mevcutResim = document.getElementById('mevcutResim');
+    if (mevcutResim.querySelector('img').src) {
+        mevcutResim.style.display = 'block';
+    }
+}
+
+// Event Listeners for Modal Buttons
+document.addEventListener('DOMContentLoaded', function() {
+    // Yeni Yorum Ekle Butonları
+    document.querySelectorAll('.yorum-ekle-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tesisId = this.getAttribute('data-tesis-id');
+            const tesisAdi = this.getAttribute('data-tesis-adi');
+            yorumModalHazirla(tesisId, tesisAdi);
+        });
+    });
+    
+    // Yorum Düzenle Butonları
+    document.querySelectorAll('.yorum-duzenle-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const yorumId = this.getAttribute('data-yorum-id');
+            const tesisId = this.getAttribute('data-tesis-id');
+            const tesisAdi = this.getAttribute('data-tesis-adi');
+            const puan = this.getAttribute('data-puan');
+            const yorumMetni = this.getAttribute('data-yorum-metni');
+            const resimYolu = this.getAttribute('data-resim-yolu');
+            yorumDuzenleModalHazirla(yorumId, tesisId, tesisAdi, puan, yorumMetni, resimYolu);
+        });
+    });
+});
 
 function iptalModalHazirla(id) {
     document.getElementById('iptalRezervasyonId').value = id;

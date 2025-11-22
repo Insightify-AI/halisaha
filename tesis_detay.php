@@ -174,7 +174,13 @@ if (isset($_SESSION['kullanici_id']) && $_SESSION['rol'] == 'musteri') {
                                         </div>
                                         <p class="card-text"><?php echo htmlspecialchars($yorum['yorum_metni']); ?></p>
                                         <?php if ($yorum['resim_yolu']): ?>
-                                            <img src="<?php echo $yorum['resim_yolu']; ?>" class="img-thumbnail mt-2" style="max-height: 100px;">
+                                            <div class="mt-2">
+                                                <img src="<?php echo $yorum['resim_yolu']; ?>" 
+                                                     class="img-fluid rounded shadow-sm" 
+                                                     style="max-height: 250px; cursor: pointer;" 
+                                                     onclick="openLightbox('<?php echo $yorum['resim_yolu']; ?>')"
+                                                     alt="Yorum Resmi">
+                                            </div>
                                         <?php endif; ?>
 
                                         <!-- BEĞENİ BUTONLARI -->
@@ -476,8 +482,50 @@ function voteComment(yorumId, action) {
         } else {
             alert(data.message);
         }
-    })
-    .catch(error => console.error('Hata:', error));
+    })\n    .catch(error => console.error('Hata:', error));
+}
+
+// Lightbox Fonksiyonu
+function openLightbox(imageSrc) {
+    // Lightbox modal oluştur
+    const lightbox = document.createElement('div');
+    lightbox.id = 'imageLightbox';
+    lightbox.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+    `;
+    
+    const img = document.createElement('img');
+    img.src = imageSrc;
+    img.style.cssText = 'max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 0 30px rgba(255,255,255,0.3);';
+    
+    lightbox.appendChild(img);
+    document.body.appendChild(lightbox);
+    
+    // Tıklayınca kapat
+    lightbox.addEventListener('click', function() {
+        document.body.removeChild(lightbox);
+    });
+    
+    // ESC tuşu ile kapat
+    document.addEventListener('keydown', function closeOnEsc(e) {
+        if (e.key === 'Escape') {
+            const lb = document.getElementById('imageLightbox');
+            if (lb) {
+                document.body.removeChild(lb);
+                document.removeEventListener('keydown', closeOnEsc);
+            }
+        }
+    });
 }
 </script>
 

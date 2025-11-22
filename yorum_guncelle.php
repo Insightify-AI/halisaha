@@ -1,17 +1,27 @@
 <?php
 require_once 'includes/db.php';
-require_once 'includes/QuestService.php';
 session_start();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['kullanici_id'])) {
-    $musteri_id = $_SESSION['rol_id'];
-    $tesis_id = $_POST['tesis_id'];
+    $yorum_id = $_POST['yorum_id'];
     $puan = $_POST['puan'];
     $yorum = htmlspecialchars($_POST['yorum']);
-    $resim_yolu = null;
-
+    $kullanici_id = $_SESSION['kullanici_id'];
+    $musteri_id = $_SESSION['rol_id'];
+    
     try {
-        // Resim Yükleme İşlemi
+        // Güvenlik: Yorumun sahibi mi kontrol et
+        $stmt = $pdo->prepare("SELECT musteri_id, resim_yolu FROM Yorumlar WHERE yorum_id = ?");
+        $stmt->execute([$yorum_id]);
+        $mevcut_yorum = $stmt->fetch();
+        
+        if (!$mevcut_yorum || $mevcut_yorum['musteri_id'] != $musteri_id) {
+            throw new Exception("Bu yorumu düzenleme yetkiniz yok!");
+        }
+        
+        $resim_yolu = $mevcut_yorum['resim_yolu']; // Mevcut resim yolu
+        
+        // Yeni Resim Yükleme İşlemi
         if (isset($_FILES['resim']) && $_FILES['resim']['error'] == UPLOAD_ERR_OK) {
             $upload_dir = 'uploads/yorumlar/';
             
@@ -37,6 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['kullanici_id'])) {
                 throw new Exception("Sadece JPG, JPEG, PNG ve WEBP formatları kabul edilir!");
             }
             
+            // Eski resmi sil (varsa)
+            if ($resim_yolu && file_exists($resim_yolu)) {
+                unlink($resim_yolu);
+            }
+            
             // Benzersiz dosya adı oluştur
             $new_file_name = 'yorum_' . $musteri_id . '_' . time() . '.' . $file_ext;
             $upload_path = $upload_dir . $new_file_name;
@@ -49,19 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['kullanici_id'])) {
             }
         }
         
-        // Yorum ve resim yolunu veritabanına kaydet
-        $sql = "INSERT INTO Yorumlar (musteri_id, tesis_id, puan, yorum_metni, resim_yolu, onay_durumu) 
-                VALUES (?, ?, ?, ?, ?, 'Onaylandı')";
+        // Yorumu güncelle
+        $sql = "UPDATE Yorumlar SET puan = ?, yorum_metni = ?, resim_yolu = ? WHERE yorum_id = ?";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$musteri_id, $tesis_id, $puan, $yorum, $resim_yolu]);
+        $stmt->execute([$puan, $yorum, $resim_yolu, $yorum_id]);
         
-        // Quest: Yorum yapma
-        $questService = new QuestService($pdo);
-        $questService->updateQuestProgress($_SESSION['kullanici_id'], 'yorum_yap_1', 1);
-        $questService->updateQuestProgress($_SESSION['kullanici_id'], 'yorum_yap_5', 1);
-
-        // Başarılıysa Profil'e geri dön (Mesajlı)
-        header("Location: profil.php?msg=yorum_basarili");
+        // Başarılıysa Profil'e geri dön
+        header("Location: profil.php?msg=yorum_guncellendi");
     } catch (Exception $e) {
         header("Location: profil.php?msg=hata&error=" . urlencode($e->getMessage()));
     } catch (PDOException $e) {
