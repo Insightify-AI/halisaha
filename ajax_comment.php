@@ -73,7 +73,12 @@ try {
     $stmt = $pdo->prepare("INSERT INTO Yorumlar (tesis_id, musteri_id, puan, yorum_metni, resim_yolu) VALUES (?, ?, ?, ?, ?)");
     $stmt->execute([$tesis_id, $uye_id, $puan, $yorum, $resim_yolu]);
     
-    echo json_encode(['success' => true, 'message' => 'Yorumunuz başarıyla gönderildi.']);
+    // Gamification: Puan Ekle
+    require_once 'includes/GamificationService.php';
+    $gamification = new GamificationService($pdo);
+    $gamification->addPoints($uye_id, 'yorum_yapma', 10, 'Yorum yaptığınız için 10 puan kazandınız!');
+    
+    echo json_encode(['success' => true, 'message' => 'Yorumunuz başarıyla gönderildi. +10 Puan kazandınız!']);
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'message' => 'Veritabanı hatası: ' . $e->getMessage()]);
 }

@@ -24,6 +24,40 @@ if ($rol == 'musteri') {
     $stmtR->execute([$musteri_id]);
     $rezervasyonlar = $stmtR->fetchAll();
     $stmtR->closeCursor();
+
+    // 4. GAMIFICATION VERİLERİNİ ÇEK
+    require_once 'includes/GamificationService.php';
+    $gamification = new GamificationService($pdo);
+    
+    // Rozetler
+    $stmt = $pdo->prepare("
+        SELECT r.*, kr.kazanilma_tarihi 
+        FROM Rozetler r
+        LEFT JOIN KullaniciRozetleri kr ON r.rozet_id = kr.rozet_id AND kr.kullanici_id = ?
+        ORDER BY kr.kazanilma_tarihi DESC, r.gerekli_islem_sayisi ASC
+    ");
+    $stmt->execute([$kullanici_id]);
+    $rozetler = $stmt->fetchAll();
+
+    // Puan Geçmişi
+    $stmt = $pdo->prepare("SELECT * FROM PuanGecmisi WHERE kullanici_id = ? ORDER BY tarih DESC LIMIT 20");
+    $stmt->execute([$kullanici_id]);
+    $puanGecmisi = $stmt->fetchAll();
+
+    // Kuponlar
+    $stmt = $pdo->prepare("SELECT * FROM Kuponlar WHERE aktif = 1");
+    $stmt->execute();
+    $kuponlar = $stmt->fetchAll();
+    
+    // Kullanıcının Kuponları
+    $stmt = $pdo->prepare("
+        SELECT kk.*, k.kupon_kodu, k.indirim_orani 
+        FROM KullaniciKuponlari kk
+        JOIN Kuponlar k ON kk.kupon_id = k.kupon_id
+        WHERE kk.kullanici_id = ?
+    ");
+    $stmt->execute([$kullanici_id]);
+    $kullaniciKuponlari = $stmt->fetchAll();
 }
 ?>
 
@@ -46,7 +80,12 @@ if ($rol == 'musteri') {
                 </div>
                 <h4 class="fw-bold"><?php echo htmlspecialchars($user['ad'] . ' ' . $user['soyad']); ?></h4>
                 <p class="text-muted mb-1"><?php echo $user['eposta']; ?></p>
-                <span class="badge bg-info text-dark mb-3"><?php echo ucfirst($user['rol']); ?> Hesabı</span>
+                <div class="mb-3">
+                    <span class="badge bg-info text-dark"><?php echo ucfirst($user['rol']); ?></span>
+                    <?php if ($rol == 'musteri'): ?>
+                        <span class="badge bg-warning text-dark"><i class="fas fa-star me-1"></i><?php echo $user['toplam_puan']; ?> Puan</span>
+                    <?php endif; ?>
+                </div>
                 
                 <div class="d-grid gap-2">
                     <button class="btn btn-outline-primary btn-sm"><i class="fas fa-cog me-1"></i> Ayarları Düzenle</button>
@@ -96,6 +135,11 @@ if ($rol == 'musteri') {
                         <li class="nav-item" role="presentation">
                             <button class="nav-link fw-bold text-danger" id="iptal-tab" data-bs-toggle="tab" data-bs-target="#iptal" type="button" role="tab">
                                 <i class="fas fa-ban me-2"></i>İptal
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold text-warning" id="oduller-tab" data-bs-toggle="tab" data-bs-target="#oduller" type="button" role="tab">
+                                <i class="fas fa-trophy me-2"></i>Ödüllerim
                             </button>
                         </li>
                     </ul>
@@ -212,6 +256,83 @@ if ($rol == 'musteri') {
                             <?php endif; ?>
                         </div>
 
+                        <!-- 4. ÖDÜLLER VE ROZETLER -->
+                        <div class="tab-pane fade" id="oduller" role="tabpanel">
+                            <div class="p-3">
+                                <!-- ROZETLER -->
+                                <h6 class="fw-bold mb-3"><i class="fas fa-medal me-2 text-warning"></i>Rozetlerim</h6>
+                                <div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+                                    <?php foreach ($rozetler as $rozet): ?>
+                                        <div class="col">
+                                            <div class="card h-100 text-center p-2 <?php echo $rozet['kazanilma_tarihi'] ? 'border-warning shadow-sm' : 'opacity-50 grayscale'; ?>">
+                                                <div class="card-body p-1">
+                                                    <i class="<?php echo $rozet['ikon']; ?> fa-2x mb-2 <?php echo $rozet['kazanilma_tarihi'] ? 'text-warning' : 'text-muted'; ?>"></i>
+                                                    <h6 class="card-title small fw-bold mb-1"><?php echo $rozet['rozet_adi']; ?></h6>
+                                                    <p class="card-text x-small text-muted" style="font-size: 0.7rem;"><?php echo $rozet['aciklama']; ?></p>
+                                                    <?php if ($rozet['kazanilma_tarihi']): ?>
+                                                        <span class="badge bg-success" style="font-size: 0.6rem;">Kazanıldı</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+
+                                <hr>
+
+                                <!-- KUPONLAR -->
+                                <h6 class="fw-bold mb-3"><i class="fas fa-ticket-alt me-2 text-success"></i>Kuponlarım</h6>
+                                
+                                <!-- Mevcut Kuponlar -->
+                                <?php if (count($kullaniciKuponlari) > 0): ?>
+                                    <div class="list-group mb-4">
+                                        <?php foreach ($kullaniciKuponlari as $kk): ?>
+                                            <div class="list-group-item d-flex justify-content-between align-items-center bg-light">
+                                                <div>
+                                                    <h6 class="fw-bold mb-0 text-success"><?php echo $kk['kupon_kodu']; ?></h6>
+                                                    <small>%<?php echo $kk['indirim_orani']; ?> İndirim</small>
+                                                </div>
+                                                <span class="badge bg-secondary">Kullanılmadı</span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <p class="text-muted small mb-4">Henüz aktif kuponunuz yok.</p>
+                                <?php endif; ?>
+
+                                <!-- Kupon Market -->
+                                <h6 class="fw-bold mb-2">Puan Harca</h6>
+                                <div class="row g-2">
+                                    <?php foreach ($kuponlar as $kupon): ?>
+                                        <div class="col-md-4">
+                                            <div class="border rounded p-2 text-center">
+                                                <div class="fw-bold text-primary"><?php echo $kupon['kupon_kodu']; ?></div>
+                                                <div class="small text-muted mb-2">%<?php echo $kupon['indirim_orani']; ?> İndirim</div>
+                                                <button class="btn btn-sm btn-outline-primary w-100" onclick="redeemCoupon(<?php echo $kupon['kupon_id']; ?>)">
+                                                    <?php echo $kupon['gerekli_puan']; ?> Puan
+                                                </button>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+
+                                <hr>
+
+                                <!-- PUAN GEÇMİŞİ -->
+                                <h6 class="fw-bold mb-3"><i class="fas fa-history me-2"></i>Puan Geçmişi</h6>
+                                <ul class="list-group list-group-flush small">
+                                    <?php foreach ($puanGecmisi as $pg): ?>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span><?php echo $pg['aciklama']; ?></span>
+                                            <span class="<?php echo $pg['puan'] > 0 ? 'text-success' : 'text-danger'; ?> fw-bold">
+                                                <?php echo $pg['puan'] > 0 ? '+' : ''; ?><?php echo $pg['puan']; ?>
+                                            </span>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        </div>
+
                     </div>
 
             <!-- FAVORİ TESİSLERİM -->
@@ -311,6 +432,22 @@ function yorumModalHazirla(id, ad) {
 
 function iptalModalHazirla(id) {
     document.getElementById('iptalRezervasyonId').value = id;
+}
+
+function redeemCoupon(kuponId) {
+    if (!confirm('Bu kuponu almak için puan harcamak istiyor musunuz?')) return;
+
+    fetch('ajax_coupon.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `kupon_id=${kuponId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.reload();
+    })
+    .catch(error => console.error('Hata:', error));
 }
 </script>
 

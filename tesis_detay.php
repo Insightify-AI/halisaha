@@ -49,7 +49,10 @@ $stmt->closeCursor();
 
 // Yorumları Çek (Kullanıcı bilgileriyle birlikte)
 $stmt = $pdo->prepare("
-    SELECT y.*, k.ad, k.soyad 
+    SELECT y.*, k.ad, k.soyad,
+    (SELECT COUNT(*) FROM YorumBegenileri WHERE yorum_id = y.yorum_id AND durum = 'like') as like_count,
+    (SELECT COUNT(*) FROM YorumBegenileri WHERE yorum_id = y.yorum_id AND durum = 'dislike') as dislike_count,
+    (SELECT yanit_metni FROM YorumYanitlari WHERE yorum_id = y.yorum_id LIMIT 1) as tesis_yaniti
     FROM Yorumlar y
     JOIN Kullanicilar k ON y.musteri_id = k.kullanici_id
     WHERE y.tesis_id = ? AND y.onay_durumu = 'Onaylandı' 
@@ -166,6 +169,24 @@ $kullaniciYorumYapabilir = ($result['rezervasyon_sayisi'] > 0);
                                         <p class="card-text"><?php echo htmlspecialchars($yorum['yorum_metni']); ?></p>
                                         <?php if ($yorum['resim_yolu']): ?>
                                             <img src="<?php echo $yorum['resim_yolu']; ?>" class="img-thumbnail mt-2" style="max-height: 100px;">
+                                        <?php endif; ?>
+
+                                        <!-- BEĞENİ BUTONLARI -->
+                                        <div class="d-flex gap-2 mt-3">
+                                            <button class="btn btn-sm btn-outline-success" onclick="voteComment(<?php echo $yorum['yorum_id']; ?>, 'like')">
+                                                <i class="far fa-thumbs-up"></i> <span id="like-count-<?php echo $yorum['yorum_id']; ?>"><?php echo $yorum['like_count']; ?></span>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="voteComment(<?php echo $yorum['yorum_id']; ?>, 'dislike')">
+                                                <i class="far fa-thumbs-down"></i> <span id="dislike-count-<?php echo $yorum['yorum_id']; ?>"><?php echo $yorum['dislike_count']; ?></span>
+                                            </button>
+                                        </div>
+
+                                        <!-- TESİS YANITI -->
+                                        <?php if ($yorum['tesis_yaniti']): ?>
+                                            <div class="bg-light p-3 mt-3 rounded border-start border-4 border-primary">
+                                                <h6 class="fw-bold text-primary mb-1"><i class="fas fa-reply me-2"></i>Tesis Yetkilisi</h6>
+                                                <p class="mb-0 small text-muted"><?php echo htmlspecialchars($yorum['tesis_yaniti']); ?></p>
+                                            </div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -370,6 +391,25 @@ document.getElementById('commentForm')?.addEventListener('submit', function(e) {
     })
     .catch(error => console.error('Hata:', error));
 });
+
+function voteComment(yorumId, action) {
+    fetch('ajax_social.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `yorum_id=${yorumId}&action=${action}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Sayıları güncelle
+            document.getElementById(`like-count-${yorumId}`).innerText = data.likes;
+            document.getElementById(`dislike-count-${yorumId}`).innerText = data.dislikes;
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => console.error('Hata:', error));
+}
 </script>
 
 <?php include 'includes/footer.php'; ?>
