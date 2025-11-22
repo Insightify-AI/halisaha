@@ -344,7 +344,7 @@ if ($rol == 'musteri') {
                 </div>
                 
                 <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary btn-sm"><i class="fas fa-cog me-1"></i> Ayarları Düzenle</button>
+                    <a href="ayarlar.php" class="btn btn-outline-primary btn-sm"><i class="fas fa-cog me-1"></i> Ayarları Düzenle</a>
                     <a href="logout.php" class="btn btn-outline-danger btn-sm"><i class="fas fa-sign-out-alt me-1"></i> Çıkış Yap</a>
                 </div>
             </div>
