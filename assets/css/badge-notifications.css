@@ -1,0 +1,150 @@
+/* Badge Notification Styles */
+.badge-notification {
+    position: fixed;
+    top: 100px;
+    right: -400px;
+    width: 350px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    z-index: 9999;
+    transition: right 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    animation: slideIn 0.5s forwards, glow 2s infinite;
+}
+
+.badge-notification.show {
+    right: 30px;
+}
+
+.badge-notification.hide {
+    animation: slideOut 0.5s forwards;
+}
+
+@keyframes slideIn {
+    from {
+        right: -400px;
+        opacity: 0;
+    }
+    to {
+        right: 30px;
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        right: 30px;
+        opacity: 1;
+    }
+    to {
+        right: -400px;
+        opacity: 0;
+    }
+}
+
+@keyframes glow {
+    0%, 100% {
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    50% {
+        box-shadow: 0 10px 60px rgba(102, 126, 234, 0.6);
+    }
+}
+
+.badge-notification-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.badge-notification-icon {
+    font-size: 48px;
+    margin-right: 15px;
+    animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.badge-notification-content h4 {
+    margin: 0 0 5px 0;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.badge-notification-content p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.badge-notification-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    transition: background 0.3s;
+}
+
+.badge-notification-close:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+/* Confetti Animation */
+.confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background: #f0f;
+    position: absolute;
+    animation: confetti-fall 3s linear;
+}
+
+@keyframes confetti-fall {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+/* Badge display in profile */
+.badge-item {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 10px;
+    margin: 5px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    transition: transform 0.3s;
+}
+
+.badge-item:hover {
+    transform: translateY(-5px);
+}
+
+.badge-item i {
+    font-size: 24px;
+    margin-right: 10px;
+}
+
+.badge-item-locked {
+    background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+    opacity: 0.6;
+}

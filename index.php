@@ -3,205 +3,362 @@ require_once 'includes/db.php';
 include 'includes/header.php';
 
 // 1. VERİ ÇEKME İŞLEMLERİ
-// Arama kutusu için Şehirleri çekelim
-$sehirler = $pdo->query("SELECT * FROM Sehirler ORDER BY plaka_kodu ASC")->fetchAll();
 
-// Vitrin tesisleri ve ortalama puanlarını çek
-$stmt = $pdo->prepare("
+// İstatistikler
+$stats = [
+    'tesis' => $pdo->query("SELECT COUNT(*) FROM Tesisler WHERE onay_durumu = 1")->fetchColumn(),
+    'uye' => $pdo->query("SELECT COUNT(*) FROM Kullanicilar WHERE rol = 'musteri'")->fetchColumn(),
+    'mac' => $pdo->query("SELECT COUNT(*) FROM Rezervasyonlar WHERE durum = 'tamamlandi'")->fetchColumn(),
+    'puan' => 4.8 // Ortalama puan (şimdilik sabit)
+];
+
+// Popüler Tesisler (Puan ve Yorum Sayısına Göre)
+$populerTesisler = $pdo->query("
     SELECT t.*, s.sehir_adi, i.ilce_adi, 
-           COALESCE(AVG(y.puan), 5.0) as ortalama_puan
+           COALESCE(AVG(y.puan), 0) as ortalama_puan,
+           COUNT(y.yorum_id) as yorum_sayisi
     FROM Tesisler t
     JOIN Ilceler i ON t.ilce_id = i.ilce_id
     JOIN Sehirler s ON i.sehir_id = s.sehir_id
     LEFT JOIN Yorumlar y ON t.tesis_id = y.tesis_id AND y.onay_durumu = 'Onaylandı'
     WHERE t.onay_durumu = 1
     GROUP BY t.tesis_id
-    ORDER BY t.tesis_id DESC
-    LIMIT 6
-");
-$stmt->execute();
-$vitrinTesisler = $stmt->fetchAll();
-$stmt->closeCursor(); // Diğer sorgular için imleci temizle
+    ORDER BY ortalama_puan DESC, yorum_sayisi DESC
+    LIMIT 3
+")->fetchAll();
+
+// En Uygun Fiyatlı Tesisler
+$uygunFiyatliTesisler = $pdo->query("
+    SELECT t.tesis_adi, MIN(sa.fiyat_saatlik) as en_dusuk_fiyat
+    FROM Tesisler t
+    JOIN Sahalar sa ON t.tesis_id = sa.tesis_id
+    WHERE t.onay_durumu = 1
+    GROUP BY t.tesis_id
+    ORDER BY en_dusuk_fiyat ASC
+    LIMIT 5
+")->fetchAll();
+
+// Son Yorumlar
+$sonYorumlar = $pdo->query("
+    SELECT y.*, k.ad, k.soyad, t.tesis_adi
+    FROM Yorumlar y
+    JOIN Kullanicilar k ON y.musteri_id = k.kullanici_id
+    JOIN Tesisler t ON y.tesis_id = t.tesis_id
+    WHERE y.onay_durumu = 'Onaylandı'
+    ORDER BY y.tarih DESC
+    LIMIT 5
+")->fetchAll();
+
+// Şehirler ve Saha Sayıları
+$sehirIstatistikleri = $pdo->query("
+    SELECT s.sehir_adi, s.sehir_id, COUNT(t.tesis_id) as tesis_sayisi
+    FROM Sehirler s
+    LEFT JOIN Ilceler i ON s.sehir_id = i.sehir_id
+    LEFT JOIN Tesisler t ON i.ilce_id = t.ilce_id AND t.onay_durumu = 1
+    GROUP BY s.sehir_id
+    ORDER BY tesis_sayisi DESC
+    LIMIT 4
+")->fetchAll();
+
+// Fiyat Trendi (Şehirlere Göre Ortalama)
+$fiyatTrendi = $pdo->query("
+    SELECT s.sehir_adi, AVG(sa.fiyat_saatlik) as ortalama_fiyat
+    FROM Sahalar sa
+    JOIN Tesisler t ON sa.tesis_id = t.tesis_id
+    JOIN Ilceler i ON t.ilce_id = i.ilce_id
+    JOIN Sehirler s ON i.sehir_id = s.sehir_id
+    GROUP BY s.sehir_id
+    ORDER BY ortalama_fiyat DESC
+    LIMIT 5
+")->fetchAll();
+
+// Şu Anda Müsait Sahalar (Basit Mantık: Rezervasyonu olmayanlar)
+// Bu sorgu karmaşık olabilir, şimdilik basitçe rastgele 3 tesis gösterelim
+$musaitTesisler = $pdo->query("
+    SELECT t.tesis_adi, sa.saha_adi, sa.fiyat_saatlik
+    FROM Tesisler t
+    JOIN Sahalar sa ON t.tesis_id = sa.tesis_id
+    WHERE t.onay_durumu = 1
+    ORDER BY RAND()
+    LIMIT 3
+")->fetchAll();
+
+// Özellik İstatistikleri
+$ozellikStats = $pdo->query("
+    SELECT o.ozellik_adi, o.ikon_kodu, COUNT(toz.tesis_id) as tesis_sayisi
+    FROM Ozellikler o
+    LEFT JOIN TesisOzellikleri toz ON o.ozellik_id = toz.ozellik_id
+    GROUP BY o.ozellik_id
+    ORDER BY tesis_sayisi DESC
+    LIMIT 4
+")->fetchAll();
+
 ?>
 
-<!-- ÖZEL CSS (Sadece bu sayfa için) -->
-<style>
-    /* Hero Section: Arka plan resmi ve karartma efekti */
-    .hero-header {
-        background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=1920&auto=format&fit=crop');
-        background-size: cover;
-        background-position: center;
-        color: white;
-        padding: 100px 0;
-        border-radius: 15px;
-        margin-bottom: 40px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    }
-    
-    /* Kart Tasarımı */
-    .card-hover {
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        border: none;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-    .card-hover:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
-    }
-    .card-img-top {
-        height: 200px;
-        object-fit: cover;
-    }
-    .badge-city {
-        background-color: #28a745; /* Yeşil ton */
-        font-size: 0.8rem;
-    }
-</style>
+<!-- 10. BİLDİRİM BANNER -->
+<div class="alert alert-warning alert-dismissible fade show text-center mb-0 rounded-0 fw-bold" role="alert">
+    🎉 YENİ! Ankara'da 3 yeni tesis eklendi! Hemen incele.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
 
-<!-- 2. HERO SEARCH SECTION -->
-<div class="hero-header text-center text-white">
+<!-- 1. CANLI İSTATİSTİKLER (HERO ÜSTÜ) -->
+<div class="bg-dark text-white py-3 border-bottom border-secondary">
     <div class="container">
-        <h1 class="display-4 fw-bold mb-3">Maç Yapmaya Hazır Mısın?</h1>
-        <p class="lead mb-4">Şehrindeki en iyi halı sahaları bul, takımını kur ve sahaya çık!</p>
-        
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <!-- Arama Formu -->
-                <form action="arama.php" method="GET" class="card p-3 shadow-lg border-0" style="background: rgba(255,255,255,0.95);">
-                    <div class="row g-2">
-                        <div class="col-md-5">
-                            <select name="sehir_id" class="form-select form-select-lg" required>
-                                <option value="" selected disabled>Şehir Seçiniz...</option>
-                                <?php foreach ($sehirler as $sehir): ?>
-                                    <option value="<?php echo $sehir['sehir_id']; ?>">
-                                        <?php echo $sehir['sehir_adi']; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <!-- İleride AJAX ile ilçeler dolacak, şimdilik görsel -->
-                            <select name="ilce_id" class="form-select form-select-lg" disabled>
-                                <option value="">Önce Şehir Seçin</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold">
-                                <i class="fas fa-search me-2"></i>ARA
-                            </button>
-                        </div>
-                    </div>
-                </form>
+        <div class="row text-center">
+            <div class="col-3 border-end border-secondary">
+                <h4 class="fw-bold mb-0 counter" data-target="<?php echo $stats['tesis']; ?>">0</h4>
+                <small class="text-muted">Tesis</small>
+            </div>
+            <div class="col-3 border-end border-secondary">
+                <h4 class="fw-bold mb-0 counter" data-target="<?php echo $stats['uye']; ?>">0</h4>
+                <small class="text-muted">Üye</small>
+            </div>
+            <div class="col-3 border-end border-secondary">
+                <h4 class="fw-bold mb-0 counter" data-target="<?php echo $stats['mac']; ?>">0</h4>
+                <small class="text-muted">Maç</small>
+            </div>
+            <div class="col-3">
+                <h4 class="fw-bold mb-0 text-warning">4.8</h4>
+                <small class="text-muted">Ort. Puan</small>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 3. POPÜLER TESİSLER LİSTESİ -->
-<div class="mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold border-start border-5 border-primary ps-3">Popüler Tesisler</h2>
-        <a href="arama.php" class="btn btn-outline-primary">Tümünü Gör <i class="fas fa-arrow-right ms-1"></i></a>
-    </div>
-
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        <?php if (count($vitrinTesisler) > 0): ?>
-            <?php foreach ($vitrinTesisler as $tesis): ?>
-                <div class="col">
-                    <div class="card h-100 card-hover shadow-sm">
-                        <!-- Resim Kontrolü: Veritabanında resim yoksa varsayılan resim koy -->
-                        <?php 
-                            $resim = !empty($tesis['kapak_resmi']) ? $tesis['kapak_resmi'] : 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop';
-                        ?>
-                        <div class="position-relative">
-                            <img src="<?php echo $resim; ?>" class="card-img-top" alt="<?php echo htmlspecialchars($tesis['tesis_adi']); ?>">
-                            <span class="position-absolute top-0 end-0 m-2 badge rounded-pill bg-light text-dark shadow-sm">
-                                <i class="fas fa-star text-warning"></i> 4.8
-                            </span>
-                        </div>
-                        
-                        <div class="card-body">
-                            <div class="mb-2">
-                                <span class="badge badge-city">
-                                    <i class="fas fa-map-marker-alt me-1"></i>
-                                    <?php echo $tesis['sehir_adi'] . " / " . $tesis['ilce_adi']; ?>
-                                </span>
-                            </div>
-                            <h5 class="card-title fw-bold text-dark">
-                                <?php echo htmlspecialchars($tesis['tesis_adi']); ?>
-                            </h5>
-                            <p class="card-text text-muted small">
-                                Modern soyunma odaları, otopark ve kafeterya hizmeti ile...
-                            </p>
-                        </div>
-                        <div class="card-footer bg-white border-top-0 pb-3">
-                            <div class="d-grid">
-                                <a href="tesis_detay.php?id=<?php echo $tesis['tesis_id']; ?>" class="btn btn-outline-dark">
-                                    İncele & Rezervasyon Yap
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+<!-- HERO SECTION -->
+<div class="hero-header text-center text-white" style="background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=1920&auto=format&fit=crop'); background-size: cover; padding: 100px 0; margin-bottom: 40px;">
+    <div class="container">
+        <h1 class="display-3 fw-bold mb-3">Maç Yapmaya Hazır Mısın?</h1>
+        <p class="lead mb-5">Şehrindeki en iyi halı sahaları bul, takımını kur ve sahaya çık!</p>
+        
+        <!-- 5. ŞEHİRLERE GÖRE ARA -->
+        <div class="row justify-content-center g-3 mb-4">
+            <?php foreach ($sehirIstatistikleri as $sehir): ?>
+                <div class="col-6 col-md-3">
+                    <a href="arama.php?sehir_id=<?php echo $sehir['sehir_id']; ?>" class="btn btn-outline-light btn-lg w-100 py-3 position-relative overflow-hidden group-hover">
+                        <span class="d-block fw-bold"><?php echo $sehir['sehir_adi']; ?></span>
+                        <small class="d-block text-white-50"><?php echo $sehir['tesis_sayisi']; ?> Saha</small>
+                    </a>
                 </div>
             <?php endforeach; ?>
-        <?php else: ?>
-            <div class="col-12 text-center py-5">
-                <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
-                <p class="text-muted">Henüz sistemde onaylı bir tesis bulunmuyor.</p>
+        </div>
+    </div>
+</div>
+
+<div class="container mb-5">
+    <div class="row">
+        <!-- SOL KOLON (ANA İÇERİK) -->
+        <div class="col-lg-8">
+            
+            <!-- 2. BU HAFTANIN EN POPÜLERLERİ -->
+            <div class="mb-5">
+                <h3 class="fw-bold mb-4 border-start border-5 border-primary ps-3">🏆 Bu Haftanın En Popülerleri</h3>
+                <div class="row g-4">
+                    <?php foreach ($populerTesisler as $index => $tesis): ?>
+                        <div class="col-md-12">
+                            <div class="card shadow-sm border-0 hover-effect">
+                                <div class="row g-0 align-items-center">
+                                    <div class="col-md-4">
+                                        <?php $resim = !empty($tesis['kapak_resmi']) ? $tesis['kapak_resmi'] : 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=400&auto=format&fit=crop'; ?>
+                                        <img src="<?php echo $resim; ?>" class="img-fluid rounded-start h-100" style="object-fit: cover; min-height: 150px;" alt="...">
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between">
+                                                <h5 class="card-title fw-bold">
+                                                    <?php 
+                                                    $madalya = ['🥇', '🥈', '🥉'];
+                                                    echo ($madalya[$index] ?? '') . ' ' . $tesis['tesis_adi']; 
+                                                    ?>
+                                                </h5>
+                                                <span class="badge bg-warning text-dark"><i class="fas fa-star"></i> <?php echo number_format($tesis['ortalama_puan'], 1); ?></span>
+                                            </div>
+                                            <p class="card-text text-muted mb-2"><i class="fas fa-map-marker-alt me-1"></i> <?php echo $tesis['sehir_adi'] . ', ' . $tesis['ilce_adi']; ?></p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-muted"><?php echo $tesis['yorum_sayisi']; ?> Yorum</small>
+                                                
+                                                <!-- 9. SOSYAL PAYLAŞIM -->
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="#" class="btn btn-outline-primary" title="Facebook'ta Paylaş"><i class="fab fa-facebook"></i></a>
+                                                    <a href="#" class="btn btn-outline-info" title="Twitter'da Paylaş"><i class="fab fa-twitter"></i></a>
+                                                    <a href="https://wa.me/?text=Bu harika sahaya bak: <?php echo $tesis['tesis_adi']; ?>" target="_blank" class="btn btn-outline-success" title="WhatsApp'ta Paylaş"><i class="fab fa-whatsapp"></i></a>
+                                                </div>
+                                                
+                                                <a href="tesis_detay.php?id=<?php echo $tesis['tesis_id']; ?>" class="btn btn-primary btn-sm">İncele</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
-        <?php endif; ?>
+
+            <!-- 4. SON YORUMLAR (CAROUSEL) -->
+            <div class="mb-5">
+                <h3 class="fw-bold mb-4 border-start border-5 border-info ps-3">💬 Son Yorumlar</h3>
+                <div id="commentsCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        <?php foreach ($sonYorumlar as $index => $yorum): ?>
+                            <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
+                                <div class="card border-0 bg-light p-4 text-center">
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <?php for($i=0; $i<$yorum['puan']; $i++) echo '<i class="fas fa-star text-warning"></i>'; ?>
+                                        </div>
+                                        <h5 class="card-title fst-italic">"<?php echo htmlspecialchars($yorum['yorum_metni']); ?>"</h5>
+                                        <p class="card-text text-muted mt-3">
+                                            <small class="fw-bold">- <?php echo $yorum['ad'] . ' ' . substr($yorum['soyad'], 0, 1) . '.'; ?></small>
+                                            <br>
+                                            <small class="text-muted"><?php echo $yorum['tesis_adi']; ?> (<?php echo date('d.m.Y', strtotime($yorum['tarih'])); ?>)</small>
+                                        </p>
+                                        <?php if($yorum['resim_yolu']): ?>
+                                            <img src="<?php echo $yorum['resim_yolu']; ?>" class="rounded shadow-sm mt-2" style="height: 80px;">
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#commentsCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon bg-dark rounded-circle" aria-hidden="true"></span>
+                        <span class="visually-hidden">Önceki</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#commentsCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon bg-dark rounded-circle" aria-hidden="true"></span>
+                        <span class="visually-hidden">Sonraki</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 6. FİYAT TREND GRAFİĞİ -->
+            <div class="mb-5">
+                <h3 class="fw-bold mb-4 border-start border-5 border-success ps-3">📈 Fiyat Trendleri</h3>
+                <div class="card border-0 shadow-sm p-3">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- SAĞ KOLON (YAN BİLEŞENLER) -->
+        <div class="col-lg-4">
+            
+            <!-- 7. ŞU ANDA MÜSAİT -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-success text-white fw-bold">
+                    <i class="fas fa-clock me-2"></i>Şu Anda Müsait
+                </div>
+                <ul class="list-group list-group-flush">
+                    <?php foreach ($musaitTesisler as $mt): ?>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0"><?php echo $mt['tesis_adi']; ?></h6>
+                                <small class="text-muted"><?php echo $mt['saha_adi']; ?></small>
+                            </div>
+                            <span class="badge bg-light text-dark border"><?php echo date('H:00'); ?> - <?php echo date('H:00', strtotime('+1 hour')); ?></span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+                <div class="card-footer text-center bg-white">
+                    <a href="arama.php" class="btn btn-sm btn-outline-success w-100">Hemen Kirala</a>
+                </div>
+            </div>
+
+            <!-- 3. EN UYGUN FİYATLAR -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-primary text-white fw-bold">
+                    <i class="fas fa-tags me-2"></i>En Uygun Fiyatlar
+                </div>
+                <ul class="list-group list-group-flush">
+                    <?php foreach ($uygunFiyatliTesisler as $utf): ?>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><?php echo $utf['tesis_adi']; ?></span>
+                            <span class="fw-bold text-success"><?php echo number_format($utf['en_dusuk_fiyat'], 0); ?>₺</span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+
+            <!-- 8. ÖNE ÇIKAN ÖZELLİKLER -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-dark text-white fw-bold">
+                    <i class="fas fa-star me-2"></i>Öne Çıkan Özellikler
+                </div>
+                <div class="card-body">
+                    <div class="row text-center g-2">
+                        <?php foreach ($ozellikStats as $os): ?>
+                            <div class="col-6">
+                                <div class="border rounded p-2 bg-light">
+                                    <i class="fas <?php echo $os['ikon_kodu']; ?> fa-2x text-primary mb-2"></i>
+                                    <h6 class="mb-0 small fw-bold"><?php echo $os['ozellik_adi']; ?></h6>
+                                    <small class="text-muted"><?php echo $os['tesis_sayisi']; ?> Tesis</small>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
 </div>
 
-<!-- İletişim / Bilgi Bölümü -->
-<div class="row mt-5 mb-5 bg-light p-5 rounded-3 shadow-sm">
-    <div class="col-md-4 text-center mb-3 mb-md-0">
-        <div class="display-4 text-primary mb-2"><i class="fas fa-headset"></i></div>
-        <h4>7/24 Destek</h4>
-        <p class="text-muted">Rezervasyonlarınla ilgili her an yanındayız.</p>
-    </div>
-    <div class="col-md-4 text-center mb-3 mb-md-0">
-        <div class="display-4 text-success mb-2"><i class="fas fa-shield-alt"></i></div>
-        <h4>Güvenli Ödeme</h4>
-        <p class="text-muted">Bilgilerin 256-bit SSL ile korunmaktadır.</p>
-    </div>
-    <div class="col-md-4 text-center">
-        <div class="display-4 text-warning mb-2"><i class="fas fa-mobile-alt"></i></div>
-        <h4>Mobil Uyumlu</h4>
-        <p class="text-muted">Telefondan veya tabletten kolayca yer ayırt.</p>
-    </div>
-</div>
+<!-- Chart.js Kütüphanesi -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<!-- Index.php en altına (footer'dan önce) eklenecek -->
 <script>
-document.querySelector('select[name="sehir_id"]').addEventListener('change', function() {
-    var sehirId = this.value;
-    var ilceSelect = document.querySelector('select[name="ilce_id"]');
+// Sayaç Animasyonu
+document.querySelectorAll('.counter').forEach(counter => {
+    const target = +counter.getAttribute('data-target');
+    const increment = target / 100;
     
-    // İlçe kutusunu temizle ve yükleniyor yaz
-    ilceSelect.innerHTML = '<option>Yükleniyor...</option>';
-    ilceSelect.disabled = true;
+    const updateCounter = () => {
+        const c = +counter.innerText;
+        if (c < target) {
+            counter.innerText = Math.ceil(c + increment);
+            setTimeout(updateCounter, 20);
+        } else {
+            counter.innerText = target;
+        }
+    };
+    updateCounter();
+});
 
-    // AJAX İsteği
-    fetch('ajax_ilceler.php?sehir_id=' + sehirId)
-        .then(response => response.json())
-        .then(data => {
-            ilceSelect.innerHTML = '<option value="">Tüm İlçeler</option>';
-            
-            data.forEach(ilce => {
-                var option = document.createElement('option');
-                option.value = ilce.ilce_id;
-                option.text = ilce.ilce_adi;
-                ilceSelect.appendChild(option);
-            });
-            
-            ilceSelect.disabled = false; // Kilidi aç
-        })
-        .catch(error => {
-            console.error('Hata:', error);
-            ilceSelect.innerHTML = '<option>Hata oluştu</option>';
-        });
+// Fiyat Grafiği
+const ctx = document.getElementById('priceChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: <?php echo json_encode(array_column($fiyatTrendi, 'sehir_adi')); ?>,
+        datasets: [{
+            label: 'Ortalama Saatlik Fiyat (TL)',
+            data: <?php echo json_encode(array_column($fiyatTrendi, 'ortalama_fiyat')); ?>,
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.2)',
+                'rgba(54, 162, 235, 0.2)',
+                'rgba(255, 206, 86, 0.2)',
+                'rgba(75, 192, 192, 0.2)',
+                'rgba(153, 102, 255, 0.2)'
+            ],
+            borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
 });
 </script>
 

@@ -9,12 +9,14 @@ if (session_status() === PHP_SESSION_NONE) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Halı Saha Rezervasyon Sistemi</title>
+    <title><?php echo isset($pageTitle) ? $pageTitle . ' - ' : ''; ?>Halısaha Rezervasyon Sistemi</title>
     
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome İkonları (İsteğe bağlı ama şık durur) -->
+    <!-- FontAwesome İkonları -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Badge Notifications CSS -->
+    <link rel="stylesheet" href="assets/css/badge-notifications.css">
     
     <style>
         body { background-color: #f8f9fa; }

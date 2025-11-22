@@ -1,6 +1,30 @@
 -- 1. KULLANICILAR TABLOSUNA PUAN KOLONU EKLE
-ALTER TABLE `Kullanicilar` 
-ADD COLUMN `toplam_puan` INT DEFAULT 0;
+DROP PROCEDURE IF EXISTS AddColumnIfNotExists;
+DELIMITER //
+CREATE PROCEDURE AddColumnIfNotExists(
+    IN tableName VARCHAR(255), 
+    IN colName VARCHAR(255), 
+    IN colDef VARCHAR(255)
+)
+BEGIN
+    DECLARE colCount INT;
+    SELECT COUNT(*) INTO colCount 
+    FROM information_schema.columns 
+    WHERE table_name = tableName 
+    AND column_name = colName 
+    AND table_schema = DATABASE();
+
+    IF colCount = 0 THEN
+        SET @s = CONCAT('ALTER TABLE ', tableName, ' ADD COLUMN ', colName, ' ', colDef);
+        PREPARE stmt FROM @s;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END //
+DELIMITER ;
+
+CALL AddColumnIfNotExists('Kullanicilar', 'toplam_puan', 'INT DEFAULT 0');
+DROP PROCEDURE AddColumnIfNotExists;
 
 -- 2. YORUM BEĞENİLERİ TABLOSU
 CREATE TABLE IF NOT EXISTS `YorumBegenileri` (
@@ -79,14 +103,14 @@ CREATE TABLE IF NOT EXISTS `KullaniciKuponlari` (
 );
 
 -- VARSAYILAN ROZETLERİ EKLE
-INSERT INTO `Rozetler` (`rozet_adi`, `rozet_kodu`, `aciklama`, `ikon`, `gerekli_islem_sayisi`) VALUES
+INSERT IGNORE INTO `Rozetler` (`rozet_adi`, `rozet_kodu`, `aciklama`, `ikon`, `gerekli_islem_sayisi`) VALUES
 ('İlk Yorum', 'ilk_yorum', 'İlk yorumunu yaptın!', 'fas fa-comment-dots', 1),
 ('5 Rezervasyon', '5_rezervasyon', '5 kez rezervasyon yaptın!', 'fas fa-calendar-check', 5),
 ('Sadık Müşteri', 'sadik_musteri', '10 kez rezervasyon yaptın!', 'fas fa-crown', 10),
 ('Popüler Yorumcu', 'populer_yorumcu', 'Yorumların 10 beğeni aldı!', 'fas fa-star', 10);
 
 -- VARSAYILAN KUPONLARI EKLE
-INSERT INTO `Kuponlar` (`kupon_kodu`, `indirim_orani`, `gerekli_puan`) VALUES
+INSERT IGNORE INTO `Kuponlar` (`kupon_kodu`, `indirim_orani`, `gerekli_puan`) VALUES
 ('INDIRIM10', 10, 500),
 ('INDIRIM20', 20, 1000),
 ('BEDAVA_MAC', 100, 5000);

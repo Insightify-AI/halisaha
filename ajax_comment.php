@@ -73,12 +73,26 @@ try {
     $stmt = $pdo->prepare("INSERT INTO Yorumlar (tesis_id, musteri_id, puan, yorum_metni, resim_yolu) VALUES (?, ?, ?, ?, ?)");
     $stmt->execute([$tesis_id, $uye_id, $puan, $yorum, $resim_yolu]);
     
-    // Gamification: Puan Ekle
+    // Gamification: Puan Ekle ve Rozetleri Kontrol Et
     require_once 'includes/GamificationService.php';
     $gamification = new GamificationService($pdo);
-    $gamification->addPoints($uye_id, 'yorum_yapma', 10, 'Yorum yaptığınız için 10 puan kazandınız!');
+    $result = $gamification->addPoints($uye_id, 'yorum_yapma', 10, 'Yorum yaptığınız için 10 puan kazandınız!');
     
-    echo json_encode(['success' => true, 'message' => 'Yorumunuz başarıyla gönderildi. +10 Puan kazandınız!']);
+    $message = 'Yorumunuz başarıyla gönderildi. +10 Puan kazandınız!';
+    $badges = [];
+    
+    // Kazanılan rozetleri kontrol et
+    if ($result['success'] && !empty($result['badges'])) {
+        $badges = $result['badges'];
+        $badgeNames = array_column($badges, 'rozet_adi');
+        $message .= ' 🎉 Yeni Rozet: ' . implode(', ', $badgeNames);
+    }
+    
+    echo json_encode([
+        'success' => true, 
+        'message' => $message,
+        'badges' => $badges
+    ]);
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'message' => 'Veritabanı hatası: ' . $e->getMessage()]);
 }

@@ -383,14 +383,77 @@ document.getElementById('commentForm')?.addEventListener('submit', function(e) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // Rozetleri göster
+            if (data.badges && data.badges.length > 0) {
+                data.badges.forEach((badge, index) => {
+                    setTimeout(() => {
+                        showBadgeNotification(badge);
+                    }, index * 1000); // Her rozet 1 saniye arayla gösterilsin
+                });
+            }
+            
+            // Mesajı göster ve sayfayı yenile
             alert(data.message);
-            location.reload(); // Yorumu görmek için sayfayı yenile
+            setTimeout(() => {
+                location.reload();
+            }, data.badges && data.badges.length > 0 ? data.badges.length * 1000 + 1500 : 500);
         } else {
             alert(data.message);
         }
     })
     .catch(error => console.error('Hata:', error));
 });
+
+// Rozet Bildirimi Gösterme Fonksiyonu
+function showBadgeNotification(badge) {
+    // Bildirim HTML'i oluştur
+    const notification = document.createElement('div');
+    notification.className = 'badge-notification show';
+    notification.innerHTML = `
+        <button class="badge-notification-close" onclick="this.parentElement.remove()">×</button>
+        <div class="badge-notification-header">
+            <div class="badge-notification-icon">
+                <i class="${badge.ikon}"></i>
+            </div>
+            <div class="badge-notification-content">
+                <h4>🎉 Yeni Rozet Kazandınız!</h4>
+                <p><strong>${badge.rozet_adi}</strong></p>
+                <p>${badge.aciklama}</p>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Konfeti efekti
+    createConfetti();
+    
+    // 5 saniye sonra otomatik kapat
+    setTimeout(() => {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            notification.remove();
+        }, 500);
+    }, 5000);
+}
+
+// Konfeti Efekti
+function createConfetti() {
+    const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe'];
+    for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * window.innerWidth + 'px';
+            confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.animationDuration = (Math.random() * 2 + 1) + 's';
+            document.body.appendChild(confetti);
+            
+            setTimeout(() => confetti.remove(), 3000);
+        }, i * 30);
+    }
+}
+
 
 function voteComment(yorumId, action) {
     fetch('ajax_social.php', {

@@ -20,16 +20,16 @@ class GamificationService {
             $stmt->execute([$points, $userId]);
 
             // 3. Rozet Kontrolü Yap
-            $this->checkBadges($userId);
+            $newBadges = $this->checkBadges($userId);
 
-            return true;
+            return ['success' => true, 'badges' => $newBadges];
         } catch (PDOException $e) {
             // Log error
-            return false;
+            return ['success' => false, 'badges' => []];
         }
     }
 
-    // Rozet Kontrolü ve Verme
+    // Rozet Kontrolü ve Verme - Detaylı bilgi döndürür
     public function checkBadges($userId) {
         $newBadges = [];
 
@@ -38,8 +38,10 @@ class GamificationService {
             $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM Yorumlar WHERE musteri_id = ?");
             $stmt->execute([$userId]);
             if ($stmt->fetchColumn() >= 1) {
-                $this->awardBadge($userId, 'ilk_yorum');
-                $newBadges[] = 'İlk Yorum';
+                $badgeInfo = $this->awardBadge($userId, 'ilk_yorum');
+                if ($badgeInfo) {
+                    $newBadges[] = $badgeInfo;
+                }
             }
         }
 
@@ -48,8 +50,10 @@ class GamificationService {
             $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM Rezervasyonlar WHERE musteri_id = ? AND durum = 'tamamlandi'");
             $stmt->execute([$userId]);
             if ($stmt->fetchColumn() >= 5) {
-                $this->awardBadge($userId, '5_rezervasyon');
-                $newBadges[] = '5 Rezervasyon';
+                $badgeInfo = $this->awardBadge($userId, '5_rezervasyon');
+                if ($badgeInfo) {
+                    $newBadges[] = $badgeInfo;
+                }
             }
         }
 
@@ -58,8 +62,10 @@ class GamificationService {
             $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM Rezervasyonlar WHERE musteri_id = ? AND durum = 'tamamlandi'");
             $stmt->execute([$userId]);
             if ($stmt->fetchColumn() >= 10) {
-                $this->awardBadge($userId, 'sadik_musteri');
-                $newBadges[] = 'Sadık Müşteri';
+                $badgeInfo = $this->awardBadge($userId, 'sadik_musteri');
+                if ($badgeInfo) {
+                    $newBadges[] = $badgeInfo;
+                }
             }
         }
 
@@ -78,17 +84,24 @@ class GamificationService {
     }
 
     private function awardBadge($userId, $badgeCode) {
-        // Rozet ID'sini bul
-        $stmt = $this->pdo->prepare("SELECT rozet_id FROM Rozetler WHERE rozet_kodu = ?");
+        // Rozet ID'sini ve detaylarını bul
+        $stmt = $this->pdo->prepare("SELECT * FROM Rozetler WHERE rozet_kodu = ?");
         $stmt->execute([$badgeCode]);
-        $rozetId = $stmt->fetchColumn();
+        $badge = $stmt->fetch();
 
-        if ($rozetId) {
+        if ($badge) {
             $stmt = $this->pdo->prepare("INSERT INTO KullaniciRozetleri (kullanici_id, rozet_id) VALUES (?, ?)");
-            $stmt->execute([$userId, $rozetId]);
+            $stmt->execute([$userId, $badge['rozet_id']]);
             
-            // Rozet kazanma bildirimi (Opsiyonel: Bildirim tablosu varsa oraya eklenebilir)
+            // Rozet bilgilerini döndür
+            return [
+                'rozet_adi' => $badge['rozet_adi'],
+                'aciklama' => $badge['aciklama'],
+                'ikon' => $badge['ikon']
+            ];
         }
+        
+        return null;
     }
 
     // Liderlik Tablosu
