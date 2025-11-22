@@ -21,10 +21,61 @@ $sonHareketler = $stmt->fetchAll();
 $stmt->closeCursor();
 ?>
 
+<?php
+// KASA DURUMUNU ÇEK
+$stmt = $pdo->prepare("CALL sp_AdminKasaDurumu()");
+$stmt->execute();
+$kasa = $stmt->fetch();
+$stmt->closeCursor();
+?>
+
 <div class="container mb-5">
-    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4">
-        <h2 class="fw-bold text-danger"><i class="fas fa-user-shield me-2"></i>Yönetim Paneli</h2>
-        <span class="text-muted">Hoşgeldin, Yönetici</span>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-dark"><i class="fas fa-tachometer-alt me-2"></i>Yönetim Paneli</h2>
+        <div class="text-muted">
+            <i class="far fa-clock me-1"></i> <?php echo date("d.m.Y H:i"); ?>
+        </div>
+    </div>
+
+    <!-- SİSTEM KASASI (FİNANSAL DURUM) -->
+    <div class="card shadow-sm border-0 mb-4 bg-dark text-white overflow-hidden">
+        <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-vault me-2 text-warning"></i>Sistem Kasası (Süper Admin)</h5>
+            <span class="badge bg-warning text-dark">Komisyon Oranı: %5</span>
+        </div>
+        <div class="card-body position-relative">
+            <!-- Arkaplan Dekoru -->
+            <i class="fas fa-coins position-absolute end-0 bottom-0 opacity-25" style="font-size: 10rem; margin-right: -20px; margin-bottom: -20px; color: #ffd700;"></i>
+            
+            <div class="row g-4 position-relative" style="z-index: 1;">
+                <!-- 1. ANLIK KASA -->
+                <div class="col-md-4">
+                    <div class="p-3 rounded border border-secondary bg-gradient" style="background-color: rgba(255,255,255,0.1);">
+                        <div class="text-secondary small mb-1">GÜNCEL BAKİYE</div>
+                        <h2 class="fw-bold text-warning mb-0">₺<?php echo number_format($kasa['guncel_kasa'], 2); ?></h2>
+                        <small class="text-light opacity-75"><i class="fas fa-wallet me-1"></i>Hesap: Kemal Serdaroğlu</small>
+                    </div>
+                </div>
+                
+                <!-- 2. BU AYKİ KAZANÇ -->
+                <div class="col-md-4">
+                    <div class="p-3 rounded border border-secondary bg-gradient" style="background-color: rgba(255,255,255,0.05);">
+                        <div class="text-secondary small mb-1">BU AYKİ KOMİSYON</div>
+                        <h3 class="fw-bold text-success mb-0">+₺<?php echo number_format($kasa['bu_ay_komisyon'], 2); ?></h3>
+                        <small class="text-light opacity-75">Son 30 Gün</small>
+                    </div>
+                </div>
+
+                <!-- 3. TOPLAM KAZANÇ -->
+                <div class="col-md-4">
+                    <div class="p-3 rounded border border-secondary bg-gradient" style="background-color: rgba(255,255,255,0.05);">
+                        <div class="text-secondary small mb-1">TOPLAM KOMİSYON GELİRİ</div>
+                        <h3 class="fw-bold text-info mb-0">₺<?php echo number_format($kasa['toplam_komisyon'], 2); ?></h3>
+                        <small class="text-light opacity-75">Tüm Zamanlar</small>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- İstatistik Kartları -->
@@ -157,7 +208,9 @@ $stmt->closeCursor();
                                     <?php if($h['durum'] == 'onay_bekliyor'): ?>
                                         <span class="badge bg-warning text-dark">Bekliyor</span>
                                     <?php elseif($h['durum'] == 'onaylandi'): ?>
-                                        <span class="badge bg-success">Onaylandı</span>
+                                        <span class="badge bg-orange">Onaylandı</span>
+                                    <?php elseif($h['durum'] == 'tamamlandi'): ?>
+                                        <span class="badge bg-success">Tamamlandı</span>
                                     <?php elseif($h['durum'] == 'iptal'): ?>
                                         <span class="badge bg-danger">İptal</span>
                                     <?php else: ?>

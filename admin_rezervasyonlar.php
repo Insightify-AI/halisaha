@@ -82,9 +82,9 @@ $stmt->closeCursor();
                                         $durumMetin = $rez['durum'];
                                         switch($rez['durum']) {
                                             case 'onay_bekliyor': $durumRenk='warning text-dark'; $durumMetin='Onay Bekliyor'; break;
-                                            case 'onaylandi': $durumRenk='success'; $durumMetin='Onaylandı'; break;
+                                            case 'onaylandi': $durumRenk='orange'; $durumMetin='Onaylandı'; break;
                                             case 'iptal': $durumRenk='danger'; $durumMetin='İptal'; break;
-                                            case 'tamamlandi': $durumRenk='primary'; $durumMetin='Tamamlandı'; break;
+                                            case 'tamamlandi': $durumRenk='success'; $durumMetin='Tamamlandı'; break;
                                         }
                                     ?>
                                     <span class="badge bg-<?php echo $durumRenk; ?>"><?php echo $durumMetin; ?></span>

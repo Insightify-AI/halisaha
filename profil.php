@@ -167,7 +167,7 @@ if ($rol == 'tesis_sahibi') {
                                                     <?php if($rez['durum'] == 'onay_bekliyor'): ?>
                                                         <span class="badge bg-warning text-dark">Bekliyor</span>
                                                     <?php elseif($rez['durum'] == 'onaylandi'): ?>
-                                                        <span class="badge bg-success">Onaylı</span>
+                                                        <span class="badge bg-orange">Onaylı</span>
                                                     <?php else: ?>
                                                         <span class="badge bg-secondary"><?php echo $rez['durum']; ?></span>
                                                     <?php endif; ?>
@@ -443,7 +443,7 @@ if ($rol == 'musteri') {
                                                         <?php if($rez['durum'] == 'onay_bekliyor'): ?>
                                                             <span class="badge bg-warning text-dark">Onay Bekliyor</span>
                                                         <?php else: ?>
-                                                            <span class="badge bg-success">Onaylandı</span>
+                                                            <span class="badge bg-orange">Onaylandı</span>
                                                         <?php endif; ?>
                                                     </td>
                                                     <td>

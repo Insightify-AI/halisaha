@@ -5,7 +5,7 @@ session_start();
 // Sadece POST isteği ile gelindiyse çalış
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_SESSION['kullanici_id'])) {
     
-    $musteri_id = $_SESSION['rol_id']; // Musteriler tablosundaki ID (Login.php'de ayarlamıştık)
+    $musteri_id = $_SESSION['rol_id']; // Sadece Müşteriler rezervasyon yapabilir
     $saha_id = $_POST['saha_id'];
     $saat_id = $_POST['saat_id'];
     $tarih = $_POST['tarih'];

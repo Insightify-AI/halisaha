@@ -16,6 +16,21 @@ try {
 
     $pdo = new PDO($dsn, $username, $password, $options);
 
+    // 1. ZAMAN DİLİMİ AYARLARI (Türkiye Saati)
+    date_default_timezone_set('Europe/Istanbul');
+    $pdo->exec("SET time_zone = '+03:00'");
+    $pdo->exec("SET NAMES 'utf8mb4'");
+
+    // 2. OTOMATİK TAMAMLAMA (Süresi geçen rezervasyonları güncelle)
+    // Onaylı olup, tarihi ve bitiş saati geçmiş olanları 'tamamlandi' yap
+    $sql = "UPDATE Rezervasyonlar r
+            JOIN SaatBloklari sb ON r.saat_id = sb.saat_id
+            SET r.durum = 'tamamlandi'
+            WHERE r.durum = 'onaylandi'
+            AND TIMESTAMP(r.tarih, sb.bitis_saati) < NOW()";
+    
+    $pdo->exec($sql);
+
     // Bağlantı başarılıysa sessizce devam et (Ekrana bir şey yazdırma)
 
 } catch (PDOException $e) {

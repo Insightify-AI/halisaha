@@ -19,21 +19,6 @@ if (session_status() === PHP_SESSION_NONE) {
     <link rel="stylesheet" href="assets/css/badge-notifications.css">
     
     <style>
-        body { background-color: #f8f9fa; }
-        .navbar { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        
-        /* Logo Styling */
-        .logo-container {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.3s ease;
-        }
-        
         .logo-container i {
             color: #fff;
             font-size: 1.3rem;

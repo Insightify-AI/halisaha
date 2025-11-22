@@ -64,7 +64,7 @@ $stmt->closeCursor();
 
 // Kullanıcının bu tesiste tamamlanmış rezervasyonu var mı kontrol et
 $kullaniciYorumYapabilir = false;
-$currentUserId = 1; // Şimdilik varsayılan (Login sistemi entegre olunca session'dan alınacak)
+$currentUserId = isset($_SESSION['kullanici_id']) ? $_SESSION['kullanici_id'] : 0;
 
 $stmt = $pdo->prepare("
     SELECT COUNT(*) as rezervasyon_sayisi 
