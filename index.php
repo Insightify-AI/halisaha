@@ -6,8 +6,19 @@ include 'includes/header.php';
 // Arama kutusu için Şehirleri çekelim
 $sehirler = $pdo->query("SELECT * FROM Sehirler ORDER BY plaka_kodu ASC")->fetchAll();
 
-// sp_VitrinTesisleriGetir prosedürü ile çekiyoruz
-$stmt = $pdo->prepare("CALL sp_VitrinTesisleriGetir()");
+// Vitrin tesisleri ve ortalama puanlarını çek
+$stmt = $pdo->prepare("
+    SELECT t.*, s.sehir_adi, i.ilce_adi, 
+           COALESCE(AVG(y.puan), 5.0) as ortalama_puan
+    FROM Tesisler t
+    JOIN Ilceler i ON t.ilce_id = i.ilce_id
+    JOIN Sehirler s ON i.sehir_id = s.sehir_id
+    LEFT JOIN Yorumlar y ON t.tesis_id = y.tesis_id AND y.onay_durumu = 'Onaylandı'
+    WHERE t.onay_durumu = 1
+    GROUP BY t.tesis_id
+    ORDER BY t.tesis_id DESC
+    LIMIT 6
+");
 $stmt->execute();
 $vitrinTesisler = $stmt->fetchAll();
 $stmt->closeCursor(); // Diğer sorgular için imleci temizle

@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/db.php';
+require_once 'includes/WeatherService.php'; // Hava Durumu Servisi
 include 'includes/header.php';
 
 // 1. URL'den ID'yi al ve Güvenlik Kontrolü yap
@@ -22,11 +23,23 @@ if (!$tesis) {
     exit;
 }
 
-// 3. Tesisin Özelliklerini Çek (Stored Procedure ile)
-$stmt = $pdo->prepare("CALL sp_TesisOzellikleriGetir(?)");
+// Hava Durumu Verisi (Tesisin bulunduğu şehre göre)
+$bugun = date('Y-m-d');
+$yarin = date('Y-m-d', strtotime('+1 day'));
+$havaBugun = WeatherService::getWeather($tesis['sehir_adi'], $bugun);
+$havaYarin = WeatherService::getWeather($tesis['sehir_adi'], $yarin);
+
+
+// 3. Tesisin Özelliklerini Çek
+$stmt = $pdo->prepare("
+    SELECT o.ozellik_adi, o.ikon_kodu 
+    FROM TesisOzellikleri toz
+    JOIN Ozellikler o ON toz.ozellik_id = o.ozellik_id
+    WHERE toz.tesis_id = ?
+");
 $stmt->execute([$tesis_id]);
 $ozellikler = $stmt->fetchAll();
-$stmt->closeCursor(); // <--- Yine kapatıyoruz
+$stmt->closeCursor();
 
 // Sahalar
 $stmt = $pdo->prepare("CALL sp_SahalariGetir(?)");
@@ -34,11 +47,34 @@ $stmt->execute([$tesis_id]);
 $sahalar = $stmt->fetchAll();
 $stmt->closeCursor();
 
-// Yorumlar
-$stmt = $pdo->prepare("CALL sp_TesisYorumlariGetir(?)");
+// Yorumları Çek (Kullanıcı bilgileriyle birlikte)
+$stmt = $pdo->prepare("
+    SELECT y.*, k.ad, k.soyad 
+    FROM Yorumlar y
+    JOIN Kullanicilar k ON y.musteri_id = k.kullanici_id
+    WHERE y.tesis_id = ? AND y.onay_durumu = 'Onaylandı' 
+    ORDER BY y.tarih DESC
+");
 $stmt->execute([$tesis_id]);
 $yorumlar = $stmt->fetchAll();
 $stmt->closeCursor();
+
+// Kullanıcının bu tesiste tamamlanmış rezervasyonu var mı kontrol et
+$kullaniciYorumYapabilir = false;
+$currentUserId = 1; // Şimdilik varsayılan (Login sistemi entegre olunca session'dan alınacak)
+
+$stmt = $pdo->prepare("
+    SELECT COUNT(*) as rezervasyon_sayisi 
+    FROM Rezervasyonlar r
+    JOIN Sahalar s ON r.saha_id = s.saha_id
+    WHERE s.tesis_id = ? 
+    AND r.musteri_id = ? 
+    AND r.durum = 'tamamlandi'
+");
+$stmt->execute([$tesis_id, $currentUserId]);
+$result = $stmt->fetch();
+$kullaniciYorumYapabilir = ($result['rezervasyon_sayisi'] > 0);
+
 
 ?>
 
@@ -100,51 +136,114 @@ $stmt->closeCursor();
                                 </div>
                             </div>
                         <?php endforeach; ?>
-                        <?php if (empty($ozellikler)): ?>
-                            <p class="text-muted small">Belirtilmiş özellik yok.</p>
+                    </div>
+                    
+                    <hr class="my-5">
+
+                    <!-- Yorumlar Bölümü -->
+                    <h5 class="fw-bold mb-4">Kullanıcı Yorumları (<?php echo count($yorumlar); ?>)</h5>
+                    
+                    <!-- Yorum Listesi -->
+                    <div class="mb-5">
+                        <?php if (count($yorumlar) > 0): ?>
+                            <?php foreach ($yorumlar as $yorum): ?>
+                                <div class="card mb-3 border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="fw-bold mb-0">
+                                                <?php 
+                                                // Kullanıcı adını gizli göster (örn: "Fatih K***")
+                                                echo htmlspecialchars($yorum['ad']) . ' ' . substr($yorum['soyad'], 0, 1) . '***'; 
+                                                ?>
+                                            </h6>
+                                            <small class="text-muted"><?php echo date('d.m.Y', strtotime($yorum['tarih'])); ?></small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                <i class="fas fa-star <?php echo $i <= $yorum['puan'] ? 'text-warning' : 'text-muted'; ?> small"></i>
+                                            <?php endfor; ?>
+                                        </div>
+                                        <p class="card-text"><?php echo htmlspecialchars($yorum['yorum_metni']); ?></p>
+                                        <?php if ($yorum['resim_yolu']): ?>
+                                            <img src="<?php echo $yorum['resim_yolu']; ?>" class="img-thumbnail mt-2" style="max-height: 100px;">
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="alert alert-light text-center">Henüz yorum yapılmamış. İlk yorumu sen yap!</div>
                         <?php endif; ?>
                     </div>
-                </div>
-            </div>
 
-            <!-- YORUMLAR BÖLÜMÜ (GÜNCELLENDİ) -->
-            <div class="card border-0 shadow-sm p-4 mt-4">
-                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                    <h5 class="fw-bold mb-0">Oyuncu Yorumları (<?php echo count($yorumlar); ?>)</h5>
-                    <span class="text-warning fw-bold fs-5">
-                        <?php echo isset($tesis['ortalama_puan']) ? number_format($tesis['ortalama_puan'], 1) : '5.0'; ?> <i class="fas fa-star"></i>
-                    </span>
-                </div>
-
-                <?php if (count($yorumlar) > 0): ?>
-                    <?php foreach ($yorumlar as $yorum): ?>
-                        <div class="mb-3 border-bottom pb-2">
-                            <div class="d-flex justify-content-between">
-                                <strong class="text-dark">
-                                    <?php echo substr($yorum['ad'],0,1) . '*** ' . substr($yorum['soyad'],0,1) . '***'; ?>
-                                </strong>
-                                <small class="text-muted"><?php echo date("d.m.Y", strtotime($yorum['tarih'])); ?></small>
-                            </div>
-                            <div class="mb-1">
-                                <?php for($i=0; $i<$yorum['puan']; $i++) echo '<i class="fas fa-star text-warning small"></i>'; ?>
-                                <?php for($i=$yorum['puan']; $i<5; $i++) echo '<i class="far fa-star text-warning small"></i>'; ?>
-                            </div>
-                            <p class="text-muted mb-0 small">
-                                <?php echo htmlspecialchars($yorum['yorum_metni']); ?>
-                            </p>
+                    <!-- Yorum Yap Formu - Sadece rezervasyonu tamamlanmış kullanıcılara göster -->
+                    <?php if ($kullaniciYorumYapabilir): ?>
+                        <div class="card bg-light border-0 p-4">
+                            <h6 class="fw-bold mb-3">Yorum Yap</h6>
+                            <form id="commentForm" enctype="multipart/form-data">
+                                <input type="hidden" name="tesis_id" value="<?php echo $tesis_id; ?>">
+                                <div class="mb-3">
+                                    <label class="form-label">Puanınız</label>
+                                    <div class="rating">
+                                        <select name="puan" class="form-select w-auto">
+                                            <option value="5">⭐⭐⭐⭐⭐ (5)</option>
+                                            <option value="4">⭐⭐⭐⭐ (4)</option>
+                                            <option value="3">⭐⭐⭐ (3)</option>
+                                            <option value="2">⭐⭐ (2)</option>
+                                            <option value="1">⭐ (1)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Yorumunuz</label>
+                                    <textarea name="yorum" class="form-control" rows="3" required placeholder="Deneyimlerinizi paylaşın..."></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Fotoğraf Ekle (İsteğe bağlı, Max: 5MB)</label>
+                                    <input type="file" name="resim" class="form-control" accept="image/*">
+                                    <small class="text-muted">Kabul edilen formatlar: JPG, JPEG, PNG, WEBP</small>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Gönder</button>
+                            </form>
                         </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="text-center py-4">
-                        <i class="far fa-comment-dots fa-3x text-muted mb-2"></i>
-                        <p class="text-muted">Henüz yorum yapılmamış. Bu tesisi deneyimleyen ilk kişi sen ol!</p>
-                    </div>
-                <?php endif; ?>
+                    <?php else: ?>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Yorum yapabilmek için bu tesiste tamamlanmış bir rezervasyonunuz olmalıdır.
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
+
+
         </div>
 
-        <!-- SAĞ KOLON: SAHALAR VE REZERVASYON -->
+        <!-- SAĞ KOLON: REZERVASYON & HAVA DURUMU -->
         <div class="col-lg-4">
+            <!-- Hava Durumu Widget -->
+            <div class="card border-0 shadow-sm mb-4 bg-gradient-primary text-white" style="background: linear-gradient(45deg, #4e54c8, #8f94fb);">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3"><i class="fas fa-cloud-sun-rain me-2"></i>Saha Hava Durumu</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-white pb-2" style="border-opacity: 0.2;">
+                        <span>Bugün</span>
+                        <div class="text-end">
+                            <i class="<?php echo $havaBugun['icon']; ?> fa-lg me-1"></i> 
+                            <span class="fw-bold"><?php echo $havaBugun['temp']; ?>°C</span>
+                            <br>
+                            <small style="font-size: 0.8rem; opacity: 0.9;"><?php echo $havaBugun['text']; ?></small>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Yarın</span>
+                        <div class="text-end">
+                            <i class="<?php echo $havaYarin['icon']; ?> fa-lg me-1"></i> 
+                            <span class="fw-bold"><?php echo $havaYarin['temp']; ?>°C</span>
+                            <br>
+                            <small style="font-size: 0.8rem; opacity: 0.9;"><?php echo $havaYarin['text']; ?></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card shadow-lg border-0 sticky-top" style="top: 20px; z-index: 1;">
                 <div class="card-header bg-dark text-white text-center py-3">
                     <h4 class="mb-0"><i class="far fa-calendar-check me-2"></i>Rezervasyon Yap</h4>
@@ -219,17 +318,21 @@ function favoriToggle(tesisId) {
     const btn = document.getElementById('favoriBtn');
     const icon = btn.querySelector('i');
     
-    fetch('ajax_favori.php', {
+    // Determine action based on current state (visual check)
+    const isActive = icon.classList.contains('fas');
+    const action = isActive ? 'remove' : 'add';
+
+    fetch('ajax_favorite.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: 'tesis_id=' + tesisId
+        body: `tesis_id=${tesisId}&action=${action}`
     })
     .then(response => response.json())
     .then(data => {
-        if (data.status === 'success') {
-            if (data.islem === 'eklendi') {
+        if (data.success) {
+            if (data.status === 'added') {
                 btn.classList.remove('btn-outline-danger');
                 btn.classList.add('btn-danger');
                 icon.classList.remove('far');
@@ -246,6 +349,27 @@ function favoriToggle(tesisId) {
     })
     .catch(error => console.error('Hata:', error));
 }
+
+// Yorum Gönderme İşlemi
+document.getElementById('commentForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch('ajax_comment.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload(); // Yorumu görmek için sayfayı yenile
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => console.error('Hata:', error));
+});
 </script>
 
 <?php include 'includes/footer.php'; ?>

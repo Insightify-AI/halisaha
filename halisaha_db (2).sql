@@ -1,0 +1,1222 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.3
+-- https://www.phpmyadmin.net/
+--
+-- Anamakine: localhost
+-- Üretim Zamanı: 22 Kas 2025, 08:06:25
+-- Sunucu sürümü: 8.0.43
+-- PHP Sürümü: 8.2.29
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Veritabanı: `halisaha_db`
+--
+
+DELIMITER $$
+--
+-- Yordamlar
+--
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminBekleyenTesisler` ()   BEGIN
+    SELECT t.*, k.ad, k.soyad, k.telefon as sahip_telefon, i.ilce_adi, s.sehir_adi
+    FROM Tesisler t
+    JOIN Kullanicilar k ON t.tesis_sahibi_id = k.kullanici_id
+    JOIN Ilceler i ON t.ilce_id = i.ilce_id
+    JOIN Sehirler s ON i.sehir_id = s.sehir_id
+    WHERE t.onay_durumu = 0
+    ORDER BY t.tesis_id DESC;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminGrafikAylik` ()   BEGIN
+        SELECT MONTH(r.tarih) as ay, COUNT(r.rezervasyon_id) as toplam
+        FROM Rezervasyonlar r
+        WHERE YEAR(r.tarih) = YEAR(CURDATE())
+        GROUP BY MONTH(r.tarih)
+        ORDER BY ay ASC;
+    END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminGrafikSehir` ()   BEGIN
+        SELECT s.sehir_adi, COUNT(r.rezervasyon_id) as toplam
+        FROM Rezervasyonlar r
+        JOIN Sahalar sa ON r.saha_id = sa.saha_id
+        JOIN Tesisler t ON sa.tesis_id = t.tesis_id
+        JOIN Ilceler i ON t.ilce_id = i.ilce_id
+        JOIN Sehirler s ON i.sehir_id = s.sehir_id
+        GROUP BY s.sehir_adi;
+    END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminIstatistik` ()   BEGIN
+    SELECT 
+        (SELECT COUNT(*) FROM Kullanicilar WHERE rol != 'admin') as toplam_kullanici,
+        (SELECT COUNT(*) FROM Tesisler) as toplam_tesis,
+        (SELECT COUNT(*) FROM Tesisler WHERE onay_durumu = 0) as bekleyen_tesis,
+        (SELECT IFNULL(SUM(tutar), 0) FROM Odemeler WHERE durum = 'basarili' OR durum = 'bekliyor') as toplam_ciro;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminKullanicilariGetir` ()   BEGIN
+        SELECT * FROM Kullanicilar ORDER BY kayit_tarihi DESC;
+    END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminKullaniciSil` (IN `p_kullanici_id` INT)   BEGIN
+        DELETE FROM Kullanicilar WHERE kullanici_id = p_kullanici_id;
+    END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminRapor` ()   BEGIN
+    SELECT 
+        s.sehir_adi, 
+        t.tesis_adi, 
+        t.ortalama_puan, 
+        COUNT(r.rezervasyon_id) as toplam_rezervasyon
+    FROM Tesisler t
+    JOIN Ilceler i ON t.ilce_id = i.ilce_id
+    JOIN Sehirler s ON i.sehir_id = s.sehir_id
+    LEFT JOIN Sahalar sh ON t.tesis_id = sh.tesis_id
+    LEFT JOIN Rezervasyonlar r ON sh.saha_id = r.saha_id
+    GROUP BY t.tesis_id
+    ORDER BY s.sehir_adi ASC, t.ortalama_puan DESC;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminRezervasyonDurumGuncelle` (IN `p_rezervasyon_id` INT, IN `p_yeni_durum` VARCHAR(20))   BEGIN
+        UPDATE Rezervasyonlar 
+        SET durum = p_yeni_durum 
+        WHERE rezervasyon_id = p_rezervasyon_id;
+    END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminSonHareketler` ()   BEGIN
+        SELECT r.tarih, r.durum, 
+               m.ad as musteri_ad, m.soyad as musteri_soyad,
+               t.tesis_adi
+        FROM Rezervasyonlar r
+        JOIN Kullanicilar m ON r.musteri_id = m.kullanici_id
+        JOIN Sahalar s ON r.saha_id = s.saha_id
+        JOIN Tesisler t ON s.tesis_id = t.tesis_id
+        ORDER BY r.rezervasyon_id DESC
+        LIMIT 5;
+    END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminTesisDurumGuncelle` (IN `p_tesis_id` INT, IN `p_durum` TINYINT)   BEGIN
+    UPDATE Tesisler SET onay_durumu = p_durum WHERE tesis_id = p_tesis_id;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_AdminTumRezervasyonlar` ()   BEGIN
+        SELECT r.*, 
+               m.ad as musteri_ad, m.soyad as musteri_soyad, m.telefon as musteri_telefon,
+               t.tesis_adi, s.saha_adi,
+               sb.baslangic_saati, sb.bitis_saati
+        FROM Rezervasyonlar r
+        JOIN Kullanicilar m ON r.musteri_id = m.kullanici_id
+        JOIN Sahalar s ON r.saha_id = s.saha_id
+        JOIN Tesisler t ON s.tesis_id = t.tesis_id
+        JOIN SaatBloklari sb ON r.saat_id = sb.saat_id
+        ORDER BY r.tarih DESC, sb.baslangic_saati DESC;
+    END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_FavoriToggle` (IN `p_kullanici_id` INT, IN `p_tesis_id` INT)   BEGIN
+    IF EXISTS (SELECT 1 FROM Favoriler WHERE kullanici_id = p_kullanici_id AND tesis_id = p_tesis_id) THEN
+        DELETE FROM Favoriler WHERE kullanici_id = p_kullanici_id AND tesis_id = p_tesis_id;
+        SELECT 'silindi' as islem;
+    ELSE
+        INSERT INTO Favoriler (kullanici_id, tesis_id) VALUES (p_kullanici_id, p_tesis_id);
+        SELECT 'eklendi' as islem;
+    END IF;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_KullaniciFavorileri` (IN `p_kullanici_id` INT)   BEGIN
+    SELECT T.*, S.sehir_adi, I.ilce_adi
+    FROM Favoriler F
+    JOIN Tesisler T ON F.tesis_id = T.tesis_id
+    JOIN Ilceler I ON T.ilce_id = I.ilce_id
+    JOIN Sehirler S ON I.sehir_id = S.sehir_id
+    WHERE F.kullanici_id = p_kullanici_id
+    ORDER BY F.ekleme_tarihi DESC;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_KullaniciGiris` (IN `p_eposta` VARCHAR(150))   BEGIN
+    -- E-postaya göre kullanıcıyı getir
+    SELECT 
+        k.kullanici_id, 
+        k.sifre, 
+        k.ad, 
+        k.soyad, 
+        k.rol,
+        m.musteri_id, -- Eğer müşteri ise ID döner, değilse NULL
+        t.sahip_id,   -- Eğer tesis sahibi ise ID döner
+        a.admin_id    -- Eğer admin ise ID döner
+    FROM Kullanicilar k
+    LEFT JOIN Musteriler m ON k.kullanici_id = m.musteri_id
+    LEFT JOIN TesisSahipleri t ON k.kullanici_id = t.sahip_id
+    LEFT JOIN Adminler a ON k.kullanici_id = a.admin_id
+    WHERE k.eposta = p_eposta;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_MusaitlikKontrol` (IN `p_saha_id` INT, IN `p_tarih` DATE)   BEGIN
+    -- O gün o sahada alınmış rezervasyonların saatlerini getirir
+    SELECT 
+        sb.saat_id, 
+        sb.baslangic_saati, 
+        sb.bitis_saati
+    FROM Rezervasyonlar r
+    JOIN SaatBloklari sb ON r.saat_id = sb.saat_id
+    WHERE r.saha_id = p_saha_id 
+      AND r.tarih = p_tarih 
+      AND r.durum != 'iptal'; -- İptal edilenler dolu sayılmaz
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_MusteriKayit` (IN `p_ad` VARCHAR(100), IN `p_soyad` VARCHAR(100), IN `p_eposta` VARCHAR(150), IN `p_sifre` VARCHAR(255), IN `p_telefon` VARCHAR(20), IN `p_cinsiyet` ENUM('E','K','Belirtilmemis'), IN `p_dogum_tarihi` DATE)   BEGIN
+    -- Hata oluşursa işlemi geri al (Rollback)
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL; -- Hatayı PHP'ye fırlat
+    END;
+
+    START TRANSACTION;
+
+        -- 1. Kullanıcılar tablosuna ekle
+        INSERT INTO Kullanicilar (ad, soyad, eposta, sifre, telefon, rol) 
+        VALUES (p_ad, p_soyad, p_eposta, p_sifre, p_telefon, 'musteri');
+
+        -- 2. Eklenen kullanıcının ID'sini al
+        SET @yeni_id = LAST_INSERT_ID();
+
+        -- 3. Müşteriler tablosuna ekle
+        INSERT INTO Musteriler (musteri_id, cinsiyet, dogum_tarihi) 
+        VALUES (@yeni_id, p_cinsiyet, p_dogum_tarihi);
+
+    COMMIT;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_MusteriRezervasyonlari` (IN `p_musteri_id` INT)   BEGIN
+    SELECT r.*, s.saha_adi, t.tesis_id, t.tesis_adi, sb.baslangic_saati, sb.bitis_saati,
+           o.durum as odeme_durumu, o.tutar
+    FROM Rezervasyonlar r
+    JOIN Sahalar s ON r.saha_id = s.saha_id
+    JOIN Tesisler t ON s.tesis_id = t.tesis_id
+    JOIN SaatBloklari sb ON r.saat_id = sb.saat_id
+    LEFT JOIN Odemeler o ON r.rezervasyon_id = o.rezervasyon_id
+    WHERE r.musteri_id = p_musteri_id
+    ORDER BY r.tarih DESC, sb.baslangic_saati DESC;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_RezervasyonIptal` (IN `p_rezervasyon_id` INT, IN `p_kullanici_id` INT)   BEGIN
+    UPDATE Rezervasyonlar 
+    SET durum = 'iptal' 
+    WHERE rezervasyon_id = p_rezervasyon_id 
+    AND musteri_id = (SELECT rol_id FROM Kullanicilar WHERE kullanici_id = p_kullanici_id AND rol = 'musteri')
+    AND durum = 'onay_bekliyor'; 
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_SahaDetayGetir` (IN `p_saha_id` INT)   BEGIN
+    SELECT s.*, t.tesis_adi, se.sehir_adi, i.ilce_adi 
+    FROM Sahalar s 
+    JOIN Tesisler t ON s.tesis_id = t.tesis_id 
+    JOIN Ilceler i ON t.ilce_id = i.ilce_id
+    JOIN Sehirler se ON i.sehir_id = se.sehir_id
+    WHERE s.saha_id = p_saha_id;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_SahaEkle` (IN `p_tesis_id` INT, IN `p_saha_adi` VARCHAR(100), IN `p_zemin_tipi` ENUM('suni_cim','dogal_cim','hali','parke'), IN `p_kapasite` INT, IN `p_fiyat` DECIMAL(10,2))   BEGIN
+    INSERT INTO Sahalar (tesis_id, saha_adi, zemin_tipi, kapasite, fiyat_saatlik) 
+    VALUES (p_tesis_id, p_saha_adi, p_zemin_tipi, p_kapasite, p_fiyat);
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_SahalariGetir` (IN `p_tesis_id` INT)   BEGIN
+    SELECT * FROM Sahalar WHERE tesis_id = p_tesis_id;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_SahipGelenRezervasyonlar` (IN `p_sahip_id` INT)   BEGIN
+    SELECT r.rezervasyon_id, r.tarih, r.durum, 
+           m.ad, m.soyad, m.telefon, 
+           t.tesis_adi, s.saha_adi,
+           sb.baslangic_saati, sb.bitis_saati,
+           o.tutar
+    FROM Rezervasyonlar r
+    JOIN Sahalar s ON r.saha_id = s.saha_id
+    JOIN Tesisler t ON s.tesis_id = t.tesis_id
+    JOIN SaatBloklari sb ON r.saat_id = sb.saat_id
+    JOIN Kullanicilar m ON r.musteri_id = m.kullanici_id 
+    LEFT JOIN Odemeler o ON r.rezervasyon_id = o.rezervasyon_id
+    WHERE t.tesis_sahibi_id = p_sahip_id 
+    ORDER BY r.olusturma_tarihi DESC;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_SahipTesisleriGetir` (IN `p_sahip_id` INT)   BEGIN
+    SELECT * FROM Tesisler WHERE tesis_sahibi_id = p_sahip_id ORDER BY tesis_id DESC;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_TesisArama` (IN `p_sehir_id` INT, IN `p_ilce_id` INT, IN `p_ozellik_ids` TEXT, IN `p_ozellik_count` INT)   BEGIN
+    -- Temel Sorgu
+    SET @sql = 'SELECT t.*, i.ilce_adi, s.sehir_adi, (SELECT MIN(fiyat_saatlik) FROM Sahalar WHERE tesis_id = t.tesis_id) as baslangic_fiyat FROM Tesisler t JOIN Ilceler i ON t.ilce_id = i.ilce_id JOIN Sehirler s ON i.sehir_id = s.sehir_id WHERE t.onay_durumu = 1';
+
+    -- Şehir Filtresi Varsa
+    IF p_sehir_id > 0 THEN
+        SET @sql = CONCAT(@sql, ' AND s.sehir_id = ', p_sehir_id);
+    END IF;
+
+    -- İlçe Filtresi Varsa
+    IF p_ilce_id > 0 THEN
+        SET @sql = CONCAT(@sql, ' AND t.ilce_id = ', p_ilce_id);
+    END IF;
+
+    -- Özellik Filtresi Varsa (En Zor Kısım)
+    -- Dinamik olarak IN (1,3,5) ve HAVING COUNT = 3 ekliyoruz
+    IF p_ozellik_count > 0 THEN
+        SET @sql = CONCAT(@sql, ' AND t.tesis_id IN (SELECT tesis_id FROM TesisOzellikleri WHERE ozellik_id IN (', p_ozellik_ids, ') GROUP BY tesis_id HAVING COUNT(DISTINCT ozellik_id) = ', p_ozellik_count, ')');
+    END IF;
+
+    -- Oluşturulan SQL'i Çalıştır
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_TesisDetayGetir` (IN `p_tesis_id` INT)   BEGIN
+    SELECT t.*, i.ilce_adi, s.sehir_adi, ts.ad AS sahip_ad, ts.soyad AS sahip_soyad
+    FROM Tesisler t
+    JOIN Ilceler i ON t.ilce_id = i.ilce_id
+    JOIN Sehirler s ON i.sehir_id = s.sehir_id
+    JOIN Kullanicilar ts ON t.tesis_sahibi_id = ts.kullanici_id
+    WHERE t.tesis_id = p_tesis_id AND t.onay_durumu = 1;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_TesisEkle` (IN `p_sahip_id` INT, IN `p_ilce_id` INT, IN `p_ad` VARCHAR(200), IN `p_adres` TEXT, IN `p_telefon` VARCHAR(20), IN `p_aciklama` TEXT, IN `p_resim` VARCHAR(255))   BEGIN
+    INSERT INTO Tesisler (tesis_sahibi_id, ilce_id, tesis_adi, adres, telefon, aciklama, kapak_resmi, onay_durumu)
+    VALUES (p_sahip_id, p_ilce_id, p_ad, p_adres, p_telefon, p_aciklama, p_resim, 0); -- 0: Onay Bekliyor
+    
+    -- Eklenen ID'yi geri döndür
+    SELECT LAST_INSERT_ID() as yeni_id;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_TesisleriListeleByIlce` (IN `p_ilce_id` INT)   BEGIN
+    SELECT 
+        t.tesis_id, 
+        t.tesis_adi, 
+        t.kapak_resmi, 
+        t.adres,
+        i.ilce_adi,
+        s.sehir_adi,
+        MIN(sh.fiyat_saatlik) as baslangic_fiyati -- En ucuz sahanın fiyatı
+    FROM Tesisler t
+    JOIN Ilceler i ON t.ilce_id = i.ilce_id
+    JOIN Sehirler s ON i.sehir_id = s.sehir_id
+    LEFT JOIN Sahalar sh ON t.tesis_id = sh.tesis_id
+    WHERE t.ilce_id = p_ilce_id AND t.onay_durumu = 1
+    GROUP BY t.tesis_id;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_TesisOzellikBagla` (IN `p_tesis_id` INT, IN `p_ozellik_id` INT)   BEGIN
+    INSERT INTO TesisOzellikIliski (tesis_id, ozellik_id) VALUES (p_tesis_id, p_ozellik_id);
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_TesisOzellikleriGetir` (IN `p_tesis_id` INT)   BEGIN
+    SELECT O.ozellik_adi, O.ikon_kodu
+    FROM TesisOzellikIliski T
+    JOIN Ozellikler O ON T.ozellik_id = O.ozellik_id
+    WHERE T.tesis_id = p_tesis_id;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_TesisYorumlariGetir` (IN `p_tesis_id` INT)   BEGIN
+    SELECT y.*, m.ad, m.soyad 
+    FROM Yorumlar y 
+    JOIN Musteriler mu ON y.musteri_id = mu.musteri_id
+    JOIN Kullanicilar m ON mu.musteri_id = m.kullanici_id
+    WHERE y.tesis_id = p_tesis_id 
+    ORDER BY y.tarih DESC;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_VitrinTesisleriGetir` ()   BEGIN
+    SELECT t.tesis_id, t.tesis_adi, t.kapak_resmi, i.ilce_adi, s.sehir_adi, t.onay_durumu
+    FROM Tesisler t 
+    JOIN Ilceler i ON t.ilce_id = i.ilce_id 
+    JOIN Sehirler s ON i.sehir_id = s.sehir_id 
+    WHERE t.onay_durumu = 1 
+    ORDER BY t.tesis_id DESC LIMIT 6;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_YorumEkle` (IN `p_musteri_id` INT, IN `p_tesis_id` INT, IN `p_puan` TINYINT, IN `p_yorum` TEXT)   BEGIN
+    -- 1. Yorumu Ekle
+    INSERT INTO Yorumlar (musteri_id, tesis_id, puan, yorum_metni) 
+    VALUES (p_musteri_id, p_tesis_id, p_puan, p_yorum);
+    
+    -- 2. Ortalamayı Hesapla ve Tesisi Güncelle
+    UPDATE Tesisler 
+    SET ortalama_puan = (SELECT AVG(puan) FROM Yorumlar WHERE tesis_id = p_tesis_id)
+    WHERE tesis_id = p_tesis_id;
+END$$
+
+DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `adminler`
+--
+
+CREATE TABLE `adminler` (
+  `admin_id` int NOT NULL,
+  `yetki_seviyesi` int DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `adminler`
+--
+
+INSERT INTO `adminler` (`admin_id`, `yetki_seviyesi`) VALUES
+(1, 5);
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `favoriler`
+--
+
+CREATE TABLE `favoriler` (
+  `favori_id` int NOT NULL,
+  `kullanici_id` int NOT NULL,
+  `tesis_id` int NOT NULL,
+  `ekleme_tarihi` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_turkish_ci;
+
+--
+-- Tablo döküm verisi `favoriler`
+--
+
+INSERT INTO `favoriler` (`favori_id`, `kullanici_id`, `tesis_id`, `ekleme_tarihi`) VALUES
+(1, 6, 23, '2025-11-21 22:43:34'),
+(2, 1, 19, '2025-11-22 10:50:44');
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `ilceler`
+--
+
+CREATE TABLE `ilceler` (
+  `ilce_id` int NOT NULL,
+  `sehir_id` int NOT NULL,
+  `ilce_adi` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `ilceler`
+--
+
+INSERT INTO `ilceler` (`ilce_id`, `sehir_id`, `ilce_adi`) VALUES
+(1, 1, 'Kadıköy'),
+(2, 1, 'Beşiktaş'),
+(3, 1, 'Üsküdar'),
+(4, 2, 'Çankaya'),
+(5, 2, 'Yenimahalle'),
+(6, 3, 'Karşıyaka'),
+(7, 3, 'Bornova');
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `islemloglari`
+--
+
+CREATE TABLE `islemloglari` (
+  `log_id` int NOT NULL,
+  `rezervasyon_id` int DEFAULT NULL,
+  `eski_durum` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT NULL,
+  `yeni_durum` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT NULL,
+  `islem_tarihi` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `kullanicilar`
+--
+
+CREATE TABLE `kullanicilar` (
+  `kullanici_id` int NOT NULL,
+  `eposta` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `sifre` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `ad` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `soyad` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `telefon` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT NULL,
+  `rol` enum('musteri','tesis_sahibi','admin') CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `kayit_tarihi` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `kullanicilar`
+--
+
+INSERT INTO `kullanicilar` (`kullanici_id`, `eposta`, `sifre`, `ad`, `soyad`, `telefon`, `rol`, `kayit_tarihi`) VALUES
+(1, 'admin@istun.edu.tr', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Kemal', 'Serdaroğlu', '05001112233', 'admin', '2025-11-20 21:02:22'),
+(2, 'sahip1@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Ahmet', 'Yılmaz', '05321112233', 'tesis_sahibi', '2025-11-20 21:02:22'),
+(3, 'sahip2@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Mehmet', 'Demir', '05334445566', 'tesis_sahibi', '2025-11-20 21:02:22'),
+(4, 'efe@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Murat Efe', 'Nalbant', '05410000001', 'musteri', '2025-11-20 21:02:22'),
+(5, 'emin@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Muhammet Emin', 'Başar', '05410000002', 'musteri', '2025-11-20 21:02:22'),
+(6, 'fatih@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Fatih', 'Korkmaz', '05410000003', 'musteri', '2025-11-20 21:02:22'),
+(7, 'yusuf@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Yusuf', 'Dünya', '05410000004', 'musteri', '2025-11-20 21:02:22'),
+(8, 'eren@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Eren', 'Kaçal', '05410000005', 'musteri', '2025-11-20 21:02:22'),
+(9, 'ayse@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Ayşe', 'Yıldız', '05410000006', 'musteri', '2025-11-20 21:02:22'),
+(10, 'fatma@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Fatma', 'Kara', '05410000007', 'musteri', '2025-11-20 21:02:22'),
+(11, 'ali@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Ali', 'Veli', '05410000008', 'musteri', '2025-11-20 21:02:22'),
+(12, 'burak@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Burak', 'Can', '05410000009', 'musteri', '2025-11-20 21:02:22'),
+(13, 'cem@mail.com', '$2y$10$TKJaNJXp3ewqcB.qw.ZMB.oufPTx2ZrNLcoZvMbWPxCCfq.k1WSNe', 'Cem', 'Uzun', '05410000010', 'musteri', '2025-11-20 21:02:22');
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `musteriler`
+--
+
+CREATE TABLE `musteriler` (
+  `musteri_id` int NOT NULL,
+  `cinsiyet` enum('E','K','Belirtilmemis') CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT 'Belirtilmemis',
+  `dogum_tarihi` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `musteriler`
+--
+
+INSERT INTO `musteriler` (`musteri_id`, `cinsiyet`, `dogum_tarihi`) VALUES
+(4, 'E', '2003-01-01'),
+(5, 'E', '2003-05-20'),
+(6, 'E', '2002-03-15'),
+(7, 'E', '2003-08-10'),
+(8, 'E', '2001-12-30'),
+(9, 'K', '2000-07-07'),
+(10, 'K', '1999-11-11'),
+(11, 'E', '1998-02-28'),
+(12, 'E', '1995-06-06'),
+(13, 'E', '2004-09-09');
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `odemeler`
+--
+
+CREATE TABLE `odemeler` (
+  `odeme_id` int NOT NULL,
+  `rezervasyon_id` int NOT NULL,
+  `tutar` decimal(10,2) NOT NULL,
+  `odeme_yontemi` enum('kredi_karti','havale','nakit') CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `odeme_tarihi` datetime DEFAULT CURRENT_TIMESTAMP,
+  `durum` enum('basarili','bekliyor','iade') CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT 'bekliyor'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `odemeler`
+--
+
+INSERT INTO `odemeler` (`odeme_id`, `rezervasyon_id`, `tutar`, `odeme_yontemi`, `odeme_tarihi`, `durum`) VALUES
+(1, 4, 800.00, 'nakit', '2025-11-20 23:30:51', 'bekliyor'),
+(2, 5, 1200.00, 'nakit', '2025-11-21 22:25:10', 'bekliyor'),
+(3, 6, 900.00, 'nakit', '2025-11-21 22:46:43', 'bekliyor');
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `ozellikler`
+--
+
+CREATE TABLE `ozellikler` (
+  `ozellik_id` int NOT NULL,
+  `ozellik_adi` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `ikon_kodu` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `ozellikler`
+--
+
+INSERT INTO `ozellikler` (`ozellik_id`, `ozellik_adi`, `ikon_kodu`) VALUES
+(1, 'Otopark', 'fa-parking'),
+(2, 'Duş', 'fa-shower'),
+(3, 'Kafeterya', 'fa-coffee'),
+(4, 'Krampon Kiralama', 'fa-shoe-prints'),
+(5, 'Tribün', 'fa-users'),
+(6, 'Duş', 'fa-shower'),
+(7, 'Soyunma Odası', 'fa-tshirt'),
+(8, 'Kafeterya', 'fa-coffee'),
+(9, 'WiFi', 'fa-wifi'),
+(10, 'Kredi Kartı', 'fa-credit-card'),
+(11, 'Tribün', 'fa-users'),
+(12, 'Kamera Kaydı', 'fa-video'),
+(13, 'Duş', 'fa-shower'),
+(14, 'Soyunma Odası', 'fa-tshirt'),
+(15, 'Kafeterya', 'fa-coffee'),
+(16, 'WiFi', 'fa-wifi'),
+(17, 'Kredi Kartı', 'fa-credit-card'),
+(18, 'Tribün', 'fa-users'),
+(19, 'Kamera Kaydı', 'fa-video'),
+(20, 'Duş', 'fa-shower'),
+(21, 'Soyunma Odası', 'fa-tshirt'),
+(22, 'Kafeterya', 'fa-coffee'),
+(23, 'WiFi', 'fa-wifi'),
+(24, 'Kredi Kartı', 'fa-credit-card'),
+(25, 'Tribün', 'fa-users'),
+(26, 'Kamera Kaydı', 'fa-video'),
+(27, 'Otopark', 'fa-parking'),
+(28, 'Duş', 'fa-shower'),
+(29, 'Soyunma Odası', 'fa-tshirt'),
+(30, 'Kafeterya', 'fa-coffee'),
+(31, 'WiFi', 'fa-wifi'),
+(32, 'Kredi Kartı', 'fa-credit-card'),
+(33, 'Tribün', 'fa-users'),
+(34, 'Kamera Kaydı', 'fa-video'),
+(35, 'Otopark', 'fa-parking'),
+(36, 'Duş', 'fa-shower'),
+(37, 'Soyunma Odası', 'fa-tshirt'),
+(38, 'Kafeterya', 'fa-coffee'),
+(39, 'WiFi', 'fa-wifi'),
+(40, 'Kredi Kartı', 'fa-credit-card'),
+(41, 'Tribün', 'fa-users'),
+(42, 'Kamera Kaydı', 'fa-video'),
+(43, 'Otopark', 'fas fa-parking'),
+(44, 'Duş', 'fas fa-shower'),
+(45, 'Soyunma Odası', 'fas fa-door-closed'),
+(46, 'Kafeterya', 'fas fa-coffee'),
+(47, 'WiFi', 'fas fa-wifi'),
+(48, 'Tribün', 'fas fa-users'),
+(49, 'Kamera Kaydı', 'fas fa-video'),
+(50, 'Ayakkabı Kiralama', 'fas fa-shoe-prints');
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `rezervasyonlar`
+--
+
+CREATE TABLE `rezervasyonlar` (
+  `rezervasyon_id` int NOT NULL,
+  `musteri_id` int NOT NULL,
+  `saha_id` int NOT NULL,
+  `saat_id` int NOT NULL,
+  `tarih` date NOT NULL,
+  `durum` enum('onay_bekliyor','onaylandi','iptal','tamamlandi') CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT 'onay_bekliyor',
+  `olusturma_tarihi` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `rezervasyonlar`
+--
+
+INSERT INTO `rezervasyonlar` (`rezervasyon_id`, `musteri_id`, `saha_id`, `saat_id`, `tarih`, `durum`, `olusturma_tarihi`) VALUES
+(1, 4, 1, 3, '2025-11-01', 'tamamlandi', '2025-11-20 21:02:22'),
+(2, 5, 1, 4, '2025-11-01', 'tamamlandi', '2025-11-20 21:02:22'),
+(3, 6, 2, 3, '2025-11-02', 'onaylandi', '2025-11-20 21:02:22'),
+(4, 12, 4, 5, '2025-11-20', 'onaylandi', '2025-11-20 23:30:51'),
+(5, 6, 35, 4, '2025-11-21', 'onay_bekliyor', '2025-11-21 22:25:10'),
+(6, 6, 37, 6, '2025-11-21', 'onay_bekliyor', '2025-11-21 22:46:43');
+
+--
+-- Tetikleyiciler `rezervasyonlar`
+--
+DELIMITER $$
+CREATE TRIGGER `trg_GecmisTarihKontrol` BEFORE INSERT ON `rezervasyonlar` FOR EACH ROW BEGIN
+    IF NEW.tarih < CURDATE() THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Hata: Geçmiş bir tarihe rezervasyon yapılamaz!';
+    END IF;
+END
+$$
+DELIMITER ;
+DELIMITER $$
+CREATE TRIGGER `trg_RezervasyonDurumDegisimi` AFTER UPDATE ON `rezervasyonlar` FOR EACH ROW BEGIN
+    -- Sadece durum değiştiyse log at
+    IF OLD.durum <> NEW.durum THEN
+        INSERT INTO IslemLoglari (rezervasyon_id, eski_durum, yeni_durum)
+        VALUES (NEW.rezervasyon_id, OLD.durum, NEW.durum);
+    END IF;
+END
+$$
+DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `saatbloklari`
+--
+
+CREATE TABLE `saatbloklari` (
+  `saat_id` int NOT NULL,
+  `baslangic_saati` time NOT NULL,
+  `bitis_saati` time NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `saatbloklari`
+--
+
+INSERT INTO `saatbloklari` (`saat_id`, `baslangic_saati`, `bitis_saati`) VALUES
+(1, '17:00:00', '18:00:00'),
+(2, '18:00:00', '19:00:00'),
+(3, '19:00:00', '20:00:00'),
+(4, '20:00:00', '21:00:00'),
+(5, '21:00:00', '22:00:00'),
+(6, '22:00:00', '23:00:00');
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `sahalar`
+--
+
+CREATE TABLE `sahalar` (
+  `saha_id` int NOT NULL,
+  `tesis_id` int NOT NULL,
+  `saha_adi` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `zemin_tipi` enum('suni_cim','dogal_cim','hali','parke') CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT 'suni_cim',
+  `kapasite` int DEFAULT '14',
+  `fiyat_saatlik` decimal(10,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `sahalar`
+--
+
+INSERT INTO `sahalar` (`saha_id`, `tesis_id`, `saha_adi`, `zemin_tipi`, `kapasite`, `fiyat_saatlik`) VALUES
+(1, 1, 'Saha A (Kapalı)', 'suni_cim', 14, 1200.00),
+(2, 1, 'Saha B (Açık)', 'suni_cim', 14, 1000.00),
+(3, 2, 'Profesyonel Saha', 'dogal_cim', 14, 1500.00),
+(4, 3, 'Merkez Saha', 'hali', 14, 800.00),
+(5, 4, 'Körfez Manzaralı', 'suni_cim', 14, 900.00),
+(6, 5, 'Vodafone Arena Mini', 'dogal_cim', 14, 2500.00),
+(7, 5, 'Kartal Kapalı Saha', 'suni_cim', 12, 2000.00),
+(8, 6, 'Boğaz Saha 1', 'suni_cim', 14, 1400.00),
+(9, 6, 'Boğaz Saha 2', 'hali', 14, 1200.00),
+(10, 6, 'Antrenman Sahası', 'suni_cim', 10, 900.00),
+(11, 7, 'Isıtmalı Kapalı Saha', 'suni_cim', 14, 1600.00),
+(12, 7, 'Açık Saha Olimpik', 'dogal_cim', 16, 1800.00),
+(13, 8, 'Öğrenci Dostu A', 'hali', 14, 800.00),
+(14, 8, 'Öğrenci Dostu B', 'hali', 14, 800.00),
+(15, 8, 'VIP Saha', 'parke', 10, 1100.00),
+(16, 9, 'Deniz Tarafı', 'dogal_cim', 14, 1800.00),
+(17, 9, 'Arka Saha', 'suni_cim', 12, 1500.00),
+(18, 10, 'Büyük Saha', 'suni_cim', 16, 1400.00),
+(19, 10, 'Küçük Saha', 'hali', 12, 1100.00),
+(20, 11, 'VIP Saha A', 'dogal_cim', 14, 3000.00),
+(21, 11, 'VIP Saha B', 'dogal_cim', 14, 3000.00),
+(22, 12, 'Park Sahası', 'hali', 12, 1000.00),
+(23, 13, 'Manzara 1', 'suni_cim', 14, 1300.00),
+(24, 13, 'Manzara 2', 'suni_cim', 14, 1300.00),
+(25, 14, 'Nostalji Saha', 'dogal_cim', 12, 1250.00),
+(26, 15, 'Kampüs A', 'suni_cim', 14, 900.00),
+(27, 15, 'Kampüs B', 'suni_cim', 14, 900.00),
+(28, 16, 'Vadi Saha', 'hali', 14, 850.00),
+(29, 17, 'Sanayi 1', 'hali', 14, 700.00),
+(30, 17, 'Sanayi 2', 'hali', 14, 700.00),
+(31, 18, 'Merkez Saha', 'suni_cim', 12, 750.00),
+(32, 19, 'Pro Saha', 'dogal_cim', 14, 1600.00),
+(33, 19, 'Antrenman', 'suni_cim', 10, 1000.00),
+(34, 20, 'Sahil 1', 'suni_cim', 14, 1200.00),
+(35, 20, 'Sahil 2', 'suni_cim', 14, 1200.00),
+(36, 21, 'Çarşı Saha', 'hali', 12, 700.00),
+(37, 22, 'AVM Saha', 'parke', 10, 900.00),
+(38, 22, 'Dış Saha', 'suni_cim', 14, 800.00),
+(39, 23, 'Düz - Basit Saha', 'suni_cim', 14, 500.00);
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `sehirler`
+--
+
+CREATE TABLE `sehirler` (
+  `sehir_id` int NOT NULL,
+  `sehir_adi` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `plaka_kodu` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `sehirler`
+--
+
+INSERT INTO `sehirler` (`sehir_id`, `sehir_adi`, `plaka_kodu`) VALUES
+(1, 'İstanbul', 34),
+(2, 'Ankara', 6),
+(3, 'İzmir', 35);
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `tesisler`
+--
+
+CREATE TABLE `tesisler` (
+  `tesis_id` int NOT NULL,
+  `tesis_sahibi_id` int NOT NULL,
+  `ilce_id` int NOT NULL,
+  `tesis_adi` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `adres` text CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci NOT NULL,
+  `telefon` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT NULL,
+  `aciklama` text CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci,
+  `kapak_resmi` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT NULL,
+  `onay_durumu` tinyint(1) DEFAULT '0',
+  `ortalama_puan` float DEFAULT '5'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `tesisler`
+--
+
+INSERT INTO `tesisler` (`tesis_id`, `tesis_sahibi_id`, `ilce_id`, `tesis_adi`, `adres`, `telefon`, `aciklama`, `kapak_resmi`, `onay_durumu`, `ortalama_puan`) VALUES
+(1, 2, 1, 'Kadıköy Arena', 'Caferağa Mah. Moda Cad. No:1', '02163334455', NULL, 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 2.6),
+(2, 2, 1, 'Fenerbahçe Spor Tesisleri', 'Fenerbahçe Mah. Kalamış Cad.', '02163334466', NULL, 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(3, 3, 4, 'Ankara Çankaya Halı Saha', 'Bahçelievler Mah. 7. Cadde', '03124445566', NULL, 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(4, 3, 6, 'Karşıyaka Spor Kompleksi', 'Bostanlı Mah. Sahil Yolu', '02325556677', NULL, 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(5, 2, 2, 'Beşiktaş Kartal Yuvası', 'Çırağan Cad. No:12 Beşiktaş/İstanbul', '02122223344', 'Boğaz manzaralı, elit bir futbol deneyimi. Profesyonel ışıklandırma mevcuttur.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(6, 3, 3, 'Üsküdar Anadolu Spor', 'Beylerbeyi Mah. Yalı Boyu Cad. Üsküdar', '02165554433', 'Anadolu yakasının en ferah sahaları. Aile ortamı ve geniş otopark.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(7, 3, 5, 'Ankara Batıkent Arena', 'Batıkent Mah. Metro Yanı Yenimahalle/Ankara', '03129998877', 'Metroya yürüme mesafesinde, kapalı ve ısıtmalı halı sahalar.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(8, 2, 7, 'İzmir Ege Park Tesisleri', 'Kazımdirik Mah. Üniversite Cad. Bornova/İzmir', '02321112211', 'Öğrencilere özel indirimli saatler. 24 saat açık kafeterya.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(9, 2, 1, 'Moda Deniz Spor', 'Moda Sahil Yolu No:5 Kadıköy', '02163330011', 'Deniz kenarında, esintili ve ferah bir maç keyfi.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(10, 2, 1, 'Göztepe Özgürlük Parkı', 'Bağdat Cad. Göztepe Parkı İçi', '02163330022', 'Şehrin göbeğinde yeşillikler içinde futbol.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(11, 3, 2, 'Etiler Lüks Arena', 'Nispetiye Cad. No:44 Beşiktaş', '02122220011', 'VIP soyunma odaları ve vale hizmeti.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(12, 3, 2, 'Abbasağa Gençlik', 'Abbasağa Parkı Yanı Beşiktaş', '02122220022', 'Mahalle maçı tadında samimi bir ortam.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(13, 2, 3, 'Çamlıca Tepesi Spor', 'Kısıklı Mah. Turistik Cad. Üsküdar', '02165550011', 'İstanbul manzaralı, yüksek rakımlı temiz hava.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(14, 2, 3, 'Kuzguncuk Bostan Sahası', 'İcadiye Cad. No:88 Üsküdar', '02165550022', 'Tarihi doku içerisinde, nostaljik zemin.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(15, 3, 4, 'Bilkent Arena', 'Üniversiteler Mah. Bilkent Plaza', '03124440011', 'Öğrenci dostu, geniş kafeteryalı modern tesis.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(16, 3, 4, 'Dikmen Vadisi Spor', 'Dikmen Cad. Vadi Girişi', '03124440022', 'Doğa ile iç içe, sessiz ve sakin.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(17, 2, 5, 'Ostim Sanayi Ligi', '100. Yıl Bulvarı Ostim', '03129990011', 'İş çıkışı maçları için ideal, geniş otopark.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(18, 2, 5, 'Demetevler Park Sahası', 'İvedik Cad. Hastane Karşısı', '03129990022', 'Merkezi konum, kolay ulaşım.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(19, 3, 6, 'Mavişehir Sports', 'Cahar Dudayev Bulvarı', '02323330011', 'Profesyonel zemin, gece maçları için mükemmel ışık.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(20, 3, 6, 'Bostanlı Sahil Tesisleri', 'Hasan Ali Yücel Bulvarı', '02323330022', 'Maçtan sonra sahilde yürüyüş imkanı.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(21, 2, 7, 'Küçükpark Arena', 'Süvari Cad. No:55 Bornova', '02321110011', 'Bornova merkeze yürüme mesafesinde.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(22, 2, 7, 'Forum Bornova Yanı', 'Kazımdirik Mah. 372. Sokak', '02321110022', 'AVM yanı, alışveriş ve spor bir arada.', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800&auto=format&fit=crop', 1, 5),
+(23, 3, 2, 'Kardeşler Halı Saha', 'Beşiktaş\'ta kimse sorsanız gösterirler', '5325554361', 'Sadece kafeterya ve otoparkımız var. Pek nezih bir ortam olduğu söylenemez. Agalarla takılamk için gelebilirsiniz. Uygun bütçelidir', 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=800&auto=format&fit=crop', 1, 5);
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `tesisozellikiliski`
+--
+
+CREATE TABLE `tesisozellikiliski` (
+  `id` int NOT NULL,
+  `tesis_id` int NOT NULL,
+  `ozellik_id` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_turkish_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `tesisozellikleri`
+--
+
+CREATE TABLE `tesisozellikleri` (
+  `tesis_id` int NOT NULL,
+  `ozellik_id` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `tesisozellikleri`
+--
+
+INSERT INTO `tesisozellikleri` (`tesis_id`, `ozellik_id`) VALUES
+(1, 1),
+(2, 1),
+(5, 1),
+(6, 1),
+(9, 1),
+(10, 1),
+(11, 1),
+(13, 1),
+(16, 1),
+(17, 1),
+(19, 1),
+(22, 1),
+(23, 1),
+(1, 2),
+(2, 2),
+(5, 2),
+(6, 2),
+(7, 2),
+(9, 2),
+(11, 2),
+(14, 2),
+(17, 2),
+(19, 2),
+(20, 2),
+(23, 2),
+(1, 3),
+(3, 3),
+(5, 3),
+(7, 3),
+(8, 3),
+(9, 3),
+(11, 3),
+(13, 3),
+(15, 3),
+(17, 3),
+(20, 3),
+(22, 3),
+(3, 4),
+(5, 4),
+(8, 4),
+(11, 4),
+(12, 4),
+(15, 4),
+(21, 4),
+(5, 5),
+(11, 5),
+(15, 5),
+(19, 5);
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `tesissahipleri`
+--
+
+CREATE TABLE `tesissahipleri` (
+  `sahip_id` int NOT NULL,
+  `vergi_no` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT NULL,
+  `iban` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+--
+-- Tablo döküm verisi `tesissahipleri`
+--
+
+INSERT INTO `tesissahipleri` (`sahip_id`, `vergi_no`, `iban`) VALUES
+(2, '1234567890', 'TR123456789012345678901234'),
+(3, '0987654321', 'TR987654321098765432109876');
+
+-- --------------------------------------------------------
+
+--
+-- Tablo için tablo yapısı `yorumlar`
+--
+
+CREATE TABLE `yorumlar` (
+  `yorum_id` int NOT NULL,
+  `musteri_id` int NOT NULL,
+  `tesis_id` int NOT NULL,
+  `puan` tinyint NOT NULL,
+  `yorum_metni` text CHARACTER SET utf8mb4 COLLATE utf8mb4_turkish_ci,
+  `tarih` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_turkish_ci;
+
+--
+-- Tablo döküm verisi `yorumlar`
+--
+
+INSERT INTO `yorumlar` (`yorum_id`, `musteri_id`, `tesis_id`, `puan`, `yorum_metni`, `tarih`) VALUES
+(1, 4, 1, 5, 'Zemin harikaydı, duşlar temiz.', '2025-11-20 21:02:22'),
+(2, 5, 1, 4, 'Biraz pahalı ama hizmet güzel.', '2025-11-20 21:02:22'),
+(3, 4, 1, 2, 'Gitmeyin beyler. Tamam Santiago Bernabau beklemiyorduk da bu kadar kötü de olmaz yani. Verdiğimiz paraya yazık.', '2025-11-21 00:44:24'),
+(4, 4, 1, 1, 'RezalEt', '2025-11-21 00:47:05'),
+(5, 6, 1, 1, 'Rambo Okan&#039;ın sahibi olduğu saha :( Gitmeyin ', '2025-11-21 23:09:47');
+
+--
+-- Tetikleyiciler `yorumlar`
+--
+DELIMITER $$
+CREATE TRIGGER `trg_YorumSilinincePuanGuncelle` AFTER DELETE ON `yorumlar` FOR EACH ROW BEGIN
+    UPDATE Tesisler 
+    SET ortalama_puan = (SELECT IFNULL(AVG(puan), 5) FROM Yorumlar WHERE tesis_id = OLD.tesis_id)
+    WHERE tesis_id = OLD.tesis_id;
+END
+$$
+DELIMITER ;
+
+--
+-- Dökümü yapılmış tablolar için indeksler
+--
+
+--
+-- Tablo için indeksler `adminler`
+--
+ALTER TABLE `adminler`
+  ADD PRIMARY KEY (`admin_id`);
+
+--
+-- Tablo için indeksler `favoriler`
+--
+ALTER TABLE `favoriler`
+  ADD PRIMARY KEY (`favori_id`),
+  ADD UNIQUE KEY `unique_favori` (`kullanici_id`,`tesis_id`),
+  ADD KEY `tesis_id` (`tesis_id`);
+
+--
+-- Tablo için indeksler `ilceler`
+--
+ALTER TABLE `ilceler`
+  ADD PRIMARY KEY (`ilce_id`),
+  ADD KEY `sehir_id` (`sehir_id`);
+
+--
+-- Tablo için indeksler `islemloglari`
+--
+ALTER TABLE `islemloglari`
+  ADD PRIMARY KEY (`log_id`);
+
+--
+-- Tablo için indeksler `kullanicilar`
+--
+ALTER TABLE `kullanicilar`
+  ADD PRIMARY KEY (`kullanici_id`),
+  ADD UNIQUE KEY `eposta` (`eposta`);
+
+--
+-- Tablo için indeksler `musteriler`
+--
+ALTER TABLE `musteriler`
+  ADD PRIMARY KEY (`musteri_id`);
+
+--
+-- Tablo için indeksler `odemeler`
+--
+ALTER TABLE `odemeler`
+  ADD PRIMARY KEY (`odeme_id`),
+  ADD UNIQUE KEY `rezervasyon_id` (`rezervasyon_id`);
+
+--
+-- Tablo için indeksler `ozellikler`
+--
+ALTER TABLE `ozellikler`
+  ADD PRIMARY KEY (`ozellik_id`);
+
+--
+-- Tablo için indeksler `rezervasyonlar`
+--
+ALTER TABLE `rezervasyonlar`
+  ADD PRIMARY KEY (`rezervasyon_id`),
+  ADD UNIQUE KEY `unique_rezervasyon` (`saha_id`,`tarih`,`saat_id`),
+  ADD KEY `musteri_id` (`musteri_id`),
+  ADD KEY `saat_id` (`saat_id`);
+
+--
+-- Tablo için indeksler `saatbloklari`
+--
+ALTER TABLE `saatbloklari`
+  ADD PRIMARY KEY (`saat_id`),
+  ADD UNIQUE KEY `baslangic_saati` (`baslangic_saati`,`bitis_saati`);
+
+--
+-- Tablo için indeksler `sahalar`
+--
+ALTER TABLE `sahalar`
+  ADD PRIMARY KEY (`saha_id`),
+  ADD KEY `tesis_id` (`tesis_id`);
+
+--
+-- Tablo için indeksler `sehirler`
+--
+ALTER TABLE `sehirler`
+  ADD PRIMARY KEY (`sehir_id`),
+  ADD UNIQUE KEY `plaka_kodu` (`plaka_kodu`);
+
+--
+-- Tablo için indeksler `tesisler`
+--
+ALTER TABLE `tesisler`
+  ADD PRIMARY KEY (`tesis_id`),
+  ADD KEY `tesis_sahibi_id` (`tesis_sahibi_id`),
+  ADD KEY `ilce_id` (`ilce_id`);
+
+--
+-- Tablo için indeksler `tesisozellikiliski`
+--
+ALTER TABLE `tesisozellikiliski`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `tesis_id` (`tesis_id`),
+  ADD KEY `ozellik_id` (`ozellik_id`);
+
+--
+-- Tablo için indeksler `tesisozellikleri`
+--
+ALTER TABLE `tesisozellikleri`
+  ADD PRIMARY KEY (`tesis_id`,`ozellik_id`),
+  ADD KEY `ozellik_id` (`ozellik_id`);
+
+--
+-- Tablo için indeksler `tesissahipleri`
+--
+ALTER TABLE `tesissahipleri`
+  ADD PRIMARY KEY (`sahip_id`);
+
+--
+-- Tablo için indeksler `yorumlar`
+--
+ALTER TABLE `yorumlar`
+  ADD PRIMARY KEY (`yorum_id`),
+  ADD KEY `musteri_id` (`musteri_id`),
+  ADD KEY `tesis_id` (`tesis_id`);
+
+--
+-- Dökümü yapılmış tablolar için AUTO_INCREMENT değeri
+--
+
+--
+-- Tablo için AUTO_INCREMENT değeri `favoriler`
+--
+ALTER TABLE `favoriler`
+  MODIFY `favori_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `ilceler`
+--
+ALTER TABLE `ilceler`
+  MODIFY `ilce_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `islemloglari`
+--
+ALTER TABLE `islemloglari`
+  MODIFY `log_id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `kullanicilar`
+--
+ALTER TABLE `kullanicilar`
+  MODIFY `kullanici_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `odemeler`
+--
+ALTER TABLE `odemeler`
+  MODIFY `odeme_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `ozellikler`
+--
+ALTER TABLE `ozellikler`
+  MODIFY `ozellik_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `rezervasyonlar`
+--
+ALTER TABLE `rezervasyonlar`
+  MODIFY `rezervasyon_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `saatbloklari`
+--
+ALTER TABLE `saatbloklari`
+  MODIFY `saat_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `sahalar`
+--
+ALTER TABLE `sahalar`
+  MODIFY `saha_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `sehirler`
+--
+ALTER TABLE `sehirler`
+  MODIFY `sehir_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `tesisler`
+--
+ALTER TABLE `tesisler`
+  MODIFY `tesis_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `tesisozellikiliski`
+--
+ALTER TABLE `tesisozellikiliski`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- Tablo için AUTO_INCREMENT değeri `yorumlar`
+--
+ALTER TABLE `yorumlar`
+  MODIFY `yorum_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- Dökümü yapılmış tablolar için kısıtlamalar
+--
+
+--
+-- Tablo kısıtlamaları `adminler`
+--
+ALTER TABLE `adminler`
+  ADD CONSTRAINT `adminler_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `kullanicilar` (`kullanici_id`) ON DELETE CASCADE;
+
+--
+-- Tablo kısıtlamaları `favoriler`
+--
+ALTER TABLE `favoriler`
+  ADD CONSTRAINT `favoriler_ibfk_1` FOREIGN KEY (`kullanici_id`) REFERENCES `kullanicilar` (`kullanici_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `favoriler_ibfk_2` FOREIGN KEY (`tesis_id`) REFERENCES `tesisler` (`tesis_id`) ON DELETE CASCADE;
+
+--
+-- Tablo kısıtlamaları `ilceler`
+--
+ALTER TABLE `ilceler`
+  ADD CONSTRAINT `ilceler_ibfk_1` FOREIGN KEY (`sehir_id`) REFERENCES `sehirler` (`sehir_id`) ON DELETE CASCADE;
+
+--
+-- Tablo kısıtlamaları `musteriler`
+--
+ALTER TABLE `musteriler`
+  ADD CONSTRAINT `musteriler_ibfk_1` FOREIGN KEY (`musteri_id`) REFERENCES `kullanicilar` (`kullanici_id`) ON DELETE CASCADE;
+
+--
+-- Tablo kısıtlamaları `odemeler`
+--
+ALTER TABLE `odemeler`
+  ADD CONSTRAINT `odemeler_ibfk_1` FOREIGN KEY (`rezervasyon_id`) REFERENCES `rezervasyonlar` (`rezervasyon_id`) ON DELETE CASCADE;
+
+--
+-- Tablo kısıtlamaları `rezervasyonlar`
+--
+ALTER TABLE `rezervasyonlar`
+  ADD CONSTRAINT `rezervasyonlar_ibfk_1` FOREIGN KEY (`musteri_id`) REFERENCES `musteriler` (`musteri_id`),
+  ADD CONSTRAINT `rezervasyonlar_ibfk_2` FOREIGN KEY (`saha_id`) REFERENCES `sahalar` (`saha_id`),
+  ADD CONSTRAINT `rezervasyonlar_ibfk_3` FOREIGN KEY (`saat_id`) REFERENCES `saatbloklari` (`saat_id`);
+
+--
+-- Tablo kısıtlamaları `sahalar`
+--
+ALTER TABLE `sahalar`
+  ADD CONSTRAINT `sahalar_ibfk_1` FOREIGN KEY (`tesis_id`) REFERENCES `tesisler` (`tesis_id`) ON DELETE CASCADE;
+
+--
+-- Tablo kısıtlamaları `tesisler`
+--
+ALTER TABLE `tesisler`
+  ADD CONSTRAINT `tesisler_ibfk_1` FOREIGN KEY (`tesis_sahibi_id`) REFERENCES `tesissahipleri` (`sahip_id`),
+  ADD CONSTRAINT `tesisler_ibfk_2` FOREIGN KEY (`ilce_id`) REFERENCES `ilceler` (`ilce_id`);
+
+--
+-- Tablo kısıtlamaları `tesisozellikiliski`
+--
+ALTER TABLE `tesisozellikiliski`
+  ADD CONSTRAINT `tesisozellikiliski_ibfk_1` FOREIGN KEY (`tesis_id`) REFERENCES `tesisler` (`tesis_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tesisozellikiliski_ibfk_2` FOREIGN KEY (`ozellik_id`) REFERENCES `ozellikler` (`ozellik_id`) ON DELETE CASCADE;
+
+--
+-- Tablo kısıtlamaları `tesisozellikleri`
+--
+ALTER TABLE `tesisozellikleri`
+  ADD CONSTRAINT `tesisozellikleri_ibfk_1` FOREIGN KEY (`tesis_id`) REFERENCES `tesisler` (`tesis_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tesisozellikleri_ibfk_2` FOREIGN KEY (`ozellik_id`) REFERENCES `ozellikler` (`ozellik_id`) ON DELETE CASCADE;
+
+--
+-- Tablo kısıtlamaları `tesissahipleri`
+--
+ALTER TABLE `tesissahipleri`
+  ADD CONSTRAINT `tesissahipleri_ibfk_1` FOREIGN KEY (`sahip_id`) REFERENCES `kullanicilar` (`kullanici_id`) ON DELETE CASCADE;
+
+--
+-- Tablo kısıtlamaları `yorumlar`
+--
+ALTER TABLE `yorumlar`
+  ADD CONSTRAINT `yorumlar_ibfk_1` FOREIGN KEY (`musteri_id`) REFERENCES `musteriler` (`musteri_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `yorumlar_ibfk_2` FOREIGN KEY (`tesis_id`) REFERENCES `tesisler` (`tesis_id`) ON DELETE CASCADE;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
