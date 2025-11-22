@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/db.php';
+require_once 'includes/QuestService.php';
 session_start();
 
 header('Content-Type: application/json');
@@ -22,6 +23,12 @@ try {
     if ($action === 'add') {
         $stmt = $pdo->prepare("INSERT IGNORE INTO Favoriler (kullanici_id, tesis_id) VALUES (?, ?)");
         $stmt->execute([$kullanici_id, $tesis_id]);
+        
+        // Quest: Favori ekleme 
+        $questService = new QuestService($pdo);
+        $questService->updateQuestProgress($kullanici_id, 'favori_ekle_3', 1);
+        $questService->updateQuestProgress($kullanici_id, 'favori_20', 1);
+        
         echo json_encode(['success' => true, 'status' => 'added']);
     } elseif ($action === 'remove') {
         $stmt = $pdo->prepare("DELETE FROM Favoriler WHERE kullanici_id = ? AND tesis_id = ?");

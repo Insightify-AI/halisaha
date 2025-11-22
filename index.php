@@ -68,69 +68,57 @@ $fiyatTrendi = $pdo->query("
     JOIN Ilceler i ON t.ilce_id = i.ilce_id
     JOIN Sehirler s ON i.sehir_id = s.sehir_id
     GROUP BY s.sehir_id
-    ORDER BY ortalama_fiyat DESC
-    LIMIT 5
 ")->fetchAll();
 
-// Şu Anda Müsait Sahalar (Basit Mantık: Rezervasyonu olmayanlar)
-// Bu sorgu karmaşık olabilir, şimdilik basitçe rastgele 3 tesis gösterelim
-$musaitTesisler = $pdo->query("
-    SELECT t.tesis_adi, sa.saha_adi, sa.fiyat_saatlik
+// Şu Anda Müsait Tesisler (random 3 available)
+$musaitTesisler = $pdo->query("SELECT t.tesis_adi, sa.saha_adi, sa.fiyat_saatlik
     FROM Tesisler t
     JOIN Sahalar sa ON t.tesis_id = sa.tesis_id
     WHERE t.onay_durumu = 1
     ORDER BY RAND()
-    LIMIT 3
-")->fetchAll();
+    LIMIT 3")->fetchAll();
 
-// Özellik İstatistikleri
+// Öne Çıkan Özellikler
 $ozellikStats = $pdo->query("
     SELECT o.ozellik_adi, o.ikon_kodu, COUNT(toz.tesis_id) as tesis_sayisi
     FROM Ozellikler o
-    LEFT JOIN TesisOzellikleri toz ON o.ozellik_id = toz.ozellik_id
+    JOIN tesisozellikleri toz ON o.ozellik_id = toz.ozellik_id
     GROUP BY o.ozellik_id
     ORDER BY tesis_sayisi DESC
     LIMIT 4
 ")->fetchAll();
-
 ?>
 
-<!-- 10. BİLDİRİM BANNER -->
-<div class="alert alert-warning alert-dismissible fade show text-center mb-0 rounded-0 fw-bold" role="alert">
-    🎉 YENİ! Ankara'da 3 yeni tesis eklendi! Hemen incele.
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-</div>
-
-<!-- 1. CANLI İSTATİSTİKLER (HERO ÜSTÜ) -->
-<div class="bg-dark text-white py-3 border-bottom border-secondary">
-    <div class="container">
-        <div class="row text-center">
-            <div class="col-3 border-end border-secondary">
-                <h4 class="fw-bold mb-0 counter" data-target="<?php echo $stats['tesis']; ?>">0</h4>
-                <small class="text-muted">Tesis</small>
-            </div>
-            <div class="col-3 border-end border-secondary">
-                <h4 class="fw-bold mb-0 counter" data-target="<?php echo $stats['uye']; ?>">0</h4>
-                <small class="text-muted">Üye</small>
-            </div>
-            <div class="col-3 border-end border-secondary">
-                <h4 class="fw-bold mb-0 counter" data-target="<?php echo $stats['mac']; ?>">0</h4>
-                <small class="text-muted">Maç</small>
-            </div>
-            <div class="col-3">
-                <h4 class="fw-bold mb-0 text-warning">4.8</h4>
-                <small class="text-muted">Ort. Puan</small>
+<!-- HERO SECTION & STATS -->
+<div class="bg-dark text-white py-5 mb-5" style="background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=1920&auto=format&fit=crop'); background-size: cover; background-position: center;">
+    <div class="container text-center">
+        <h1 class="display-4 fw-bold mb-4">Halı Saha Bulmanın En Kolay Yolu</h1>
+        <p class="lead mb-5">İstediğin şehirde, istediğin saatte, en uygun fiyatlarla halı saha kirala.</p>
+        
+        <!-- İSTATİSTİKLER -->
+        <div class="row justify-content-center mb-5">
+            <div class="col-md-8">
+                <div class="row bg-white text-dark rounded shadow p-3 mx-1">
+                    <div class="col-3 border-end border-secondary">
+                        <h4 class="fw-bold mb-0 counter" data-target="<?php echo $stats['tesis']; ?>">0</h4>
+                        <small class="text-muted">Tesis</small>
+                    </div>
+                    <div class="col-3 border-end border-secondary">
+                        <h4 class="fw-bold mb-0 counter" data-target="<?php echo $stats['uye']; ?>">0</h4>
+                        <small class="text-muted">Üye</small>
+                    </div>
+                    <div class="col-3 border-end border-secondary">
+                        <h4 class="fw-bold mb-0 counter" data-target="<?php echo $stats['mac']; ?>">0</h4>
+                        <small class="text-muted">Maç</small>
+                    </div>
+                    <div class="col-3">
+                        <h4 class="fw-bold mb-0 counter" data-target="480">0</h4>
+                        <small class="text-muted">Puan</small>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- HERO SECTION -->
-<div class="hero-header text-center text-white" style="background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=1920&auto=format&fit=crop'); background-size: cover; padding: 100px 0; margin-bottom: 40px;">
-    <div class="container">
-        <h1 class="display-3 fw-bold mb-3">Maç Yapmaya Hazır Mısın?</h1>
-        <p class="lead mb-5">Şehrindeki en iyi halı sahaları bul, takımını kur ve sahaya çık!</p>
-        
         <!-- 5. ŞEHİRLERE GÖRE ARA -->
         <div class="row justify-content-center g-3 mb-4">
             <?php foreach ($sehirIstatistikleri as $sehir): ?>
@@ -333,22 +321,10 @@ new Chart(ctx, {
     data: {
         labels: <?php echo json_encode(array_column($fiyatTrendi, 'sehir_adi')); ?>,
         datasets: [{
-            label: 'Ortalama Saatlik Fiyat (TL)',
+            label: 'Ortalama Saatlik Fiyat (₺)',
             data: <?php echo json_encode(array_column($fiyatTrendi, 'ortalama_fiyat')); ?>,
-            backgroundColor: [
-                'rgba(255, 99, 132, 0.2)',
-                'rgba(54, 162, 235, 0.2)',
-                'rgba(255, 206, 86, 0.2)',
-                'rgba(75, 192, 192, 0.2)',
-                'rgba(153, 102, 255, 0.2)'
-            ],
-            borderColor: [
-                'rgba(255, 99, 132, 1)',
-                'rgba(54, 162, 235, 1)',
-                'rgba(255, 206, 86, 1)',
-                'rgba(75, 192, 192, 1)',
-                'rgba(153, 102, 255, 1)'
-            ],
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
             borderWidth: 1
         }]
     },

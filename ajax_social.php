@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/db.php';
 require_once 'includes/GamificationService.php';
+require_once 'includes/QuestService.php';
 
 header('Content-Type: application/json');
 
@@ -11,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $action = $_POST['action'] ?? '';
 $gamification = new GamificationService($pdo);
+$questService = new QuestService($pdo);
 
 // 1. YORUM BEĞENME / BEĞENMEME
 if ($action === 'like' || $action === 'dislike') {
@@ -95,6 +97,9 @@ elseif ($action === 'reply') {
     try {
         $stmt = $pdo->prepare("INSERT INTO YorumYanitlari (yorum_id, tesis_sahibi_id, yanit_metni) VALUES (?, ?, ?)");
         $stmt->execute([$yorum_id, $tesis_sahibi_id, $yanit_metni]);
+        
+        // Quest: Bir yoruma yanıt ver (tesis sahipleri için özel quest olabilir)
+        // $questService->updateQuestProgress($tesis_sahibi_id, 'yorum_yanitla', 1);
 
         echo json_encode(['success' => true, 'message' => 'Yanıtınız kaydedildi.']);
     } catch (PDOException $e) {

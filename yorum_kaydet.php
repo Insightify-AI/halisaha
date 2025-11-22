@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/db.php';
+require_once 'includes/QuestService.php';
 session_start();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['kullanici_id'])) {
@@ -13,6 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['kullanici_id'])) {
         $sql = "CALL sp_YorumEkle(?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$musteri_id, $tesis_id, $puan, $yorum]);
+        
+        // Quest: Yorum yapma
+        $questService = new QuestService($pdo);
+        $questService->updateQuestProgress($_SESSION['kullanici_id'], 'yorum_yap_1', 1);
+        $questService->updateQuestProgress($_SESSION['kullanici_id'], 'yorum_yap_5', 1);
 
         // Başarılıysa Profil'e geri dön (Mesajlı)
         header("Location: profil.php?msg=yorum_basarili");

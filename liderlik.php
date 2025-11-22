@@ -4,15 +4,42 @@ require_once 'includes/GamificationService.php';
 include 'includes/header.php';
 
 $gamification = new GamificationService($pdo);
-$leaderboard = $gamification->getLeaderboard(20);
+$view = $_GET['view'] ?? 'weekly'; // 'weekly' veya 'all'
+
+if ($view == 'weekly') {
+    // Haftalık liderlik (View'dan çek)
+    $stmt = $pdo->prepare("
+        SELECT * FROM v_HaftalikPuanlar 
+        ORDER BY haftalik_puan DESC 
+        LIMIT 20
+    ");
+    $stmt->execute();
+    $leaderboard = $stmt->fetchAll();
+    $title = "Bu Haftanın Liderleri";
+    $puanField = 'haftalik_puan';
+} else {
+    // Tüm zamanlar
+    $leaderboard = $gamification->getLeaderboard(20);
+    $title = "Tüm Zamanların Liderleri";
+    $puanField = 'toplam_puan';
+}
 ?>
 
 <div class="container mb-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="text-center mb-5 mt-4">
+            <div class="text-center mb-4 mt-4">
                 <h2 class="fw-bold text-primary"><i class="fas fa-trophy text-warning me-2"></i>Liderlik Tablosu</h2>
                 <p class="text-muted">En aktif halı saha oyuncuları ve puanları</p>
+                
+                <div class="btn-group shadow-sm">
+                    <a href="?view=weekly" class="btn <?php echo $view == 'weekly' ? 'btn-primary' : 'btn-outline-primary'; ?>">
+                        Bu Hafta
+                    </a>
+                    <a href="?view=all" class="btn <?php echo $view == 'all' ? 'btn-primary' : 'btn-outline-primary'; ?>">
+                        Tüm Zamanlar
+                    </a>
+                </div>
             </div>
 
             <div class="card border-0 shadow-lg overflow-hidden">
@@ -24,39 +51,48 @@ $leaderboard = $gamification->getLeaderboard(20);
                     </div>
                 </div>
                 <div class="list-group list-group-flush">
-                    <?php $rank = 1; ?>
-                    <?php foreach ($leaderboard as $user): ?>
-                        <div class="list-group-item p-3 <?php echo $rank <= 3 ? 'bg-light' : ''; ?>">
-                            <div class="row align-items-center text-center">
-                                <div class="col-2">
-                                    <?php if ($rank == 1): ?>
-                                        <i class="fas fa-crown text-warning fa-2x"></i>
-                                    <?php elseif ($rank == 2): ?>
-                                        <i class="fas fa-medal text-secondary fa-2x"></i>
-                                    <?php elseif ($rank == 3): ?>
-                                        <i class="fas fa-medal text-danger fa-2x"></i>
-                                    <?php else: ?>
-                                        <span class="fw-bold fs-5 text-muted">#<?php echo $rank; ?></span>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-6 text-start">
-                                    <div class="d-flex align-items-center">
-                                        <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($user['ad'] . ' ' . $user['soyad']); ?>&background=random" class="rounded-circle me-3" width="40">
-                                        <div>
-                                            <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($user['ad'] . ' ' . substr($user['soyad'], 0, 1) . '.'); ?></h6>
-                                            <small class="text-muted"><?php echo $user['rezervasyon_sayisi']; ?> Maç</small>
+                    <?php if (count($leaderboard) > 0): ?>
+                        <?php $rank = 1; ?>
+                        <?php foreach ($leaderboard as $user): ?>
+                            <div class="list-group-item p-3 <?php echo $rank <= 3 ? 'bg-light' : ''; ?>">
+                                <div class="row align-items-center text-center">
+                                    <div class="col-2">
+                                        <?php if ($rank == 1): ?>
+                                            <i class="fas fa-crown text-warning fa-2x"></i>
+                                        <?php elseif ($rank == 2): ?>
+                                            <i class="fas fa-medal text-secondary fa-2x"></i>
+                                        <?php elseif ($rank == 3): ?>
+                                            <i class="fas fa-medal text-danger fa-2x"></i>
+                                        <?php else: ?>
+                                            <span class="fw-bold fs-5 text-muted">#<?php echo $rank; ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-6 text-start">
+                                        <div class="d-flex align-items-center">
+                                            <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($user['ad'] . ' ' . $user['soyad']); ?>&background=random" class="rounded-circle me-3" width="40">
+                                            <div>
+                                                <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($user['ad'] . ' ' . substr($user['soyad'], 0, 1) . '.'); ?></h6>
+                                                <small class="text-muted">
+                                                    <?php echo isset($user['aktivite_sayisi']) ? $user['aktivite_sayisi'] . ' Aktivite' : ($user['rezervasyon_sayisi'] ?? 0) . ' Maç'; ?>
+                                                </small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="col-4">
-                                    <span class="badge bg-success rounded-pill px-3 py-2 fs-6">
-                                        <?php echo number_format($user['toplam_puan']); ?> P
-                                    </span>
+                                    <div class="col-4">
+                                        <span class="badge bg-success rounded-pill px-3 py-2 fs-6">
+                                            <?php echo number_format($user[$puanField]); ?> P
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
+                            <?php $rank++; ?>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                            <p>Henüz bu hafta veri yok. İlk puanı sen kazan!</p>
                         </div>
-                        <?php $rank++; ?>
-                    <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
             </div>
             

@@ -58,6 +58,21 @@ if ($rol == 'musteri') {
     ");
     $stmt->execute([$kullanici_id]);
     $kullaniciKuponlari = $stmt->fetchAll();
+    
+    // STREAK VE QUEST VERİLERİ
+    require_once 'includes/StreakService.php';
+    require_once 'includes/QuestService.php';
+    require_once 'includes/WheelService.php';
+    
+    $streakService = new StreakService($pdo);
+    $questService = new QuestService($pdo);
+    $wheelService = new WheelService($pdo);
+    
+    $streakData = $streakService->getCurrentStreak($kullanici_id);
+    $hasCheckedIn = $streakService->hasCheckedInToday($kullanici_id);
+    $canSpin = $wheelService->canSpinToday($kullanici_id);
+    $dailyQuests = $questService->getDailyQuests($kullanici_id);
+    $weeklyQuests = $questService->getWeeklyQuests($kullanici_id);
 }
 ?>
 
@@ -80,6 +95,39 @@ if ($rol == 'musteri') {
                 </div>
                 <h4 class="fw-bold"><?php echo htmlspecialchars($user['ad'] . ' ' . $user['soyad']); ?></h4>
                 <p class="text-muted mb-1"><?php echo $user['eposta']; ?></p>
+                
+                <?php if ($rol == 'musteri'): ?>
+                    <!-- STREAK WIDGET -->
+                    <div class="mb-3 p-3 rounded" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="text-white text-center">
+                            <i class="fas fa-fire text-warning fa-2x mb-2"></i>
+                            <h3 class="mb-0 fw-bold" id="streakCount"><?php echo $streakData['mevcut_streak'] ?? 0; ?></h3>
+                            <small>Gün Streak! 🔥</small>
+                            <div class="mt-2 small">
+                                <i class="fas fa-trophy text-warning"></i>
+                                En Uzun: <?php echo $streakData['en_uzun_streak'] ?? 0; ?> gün
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CHECK-IN VE ÇARK BUTONLARI -->
+                    <div class="d-grid gap-2 mb-3">
+                        <button class="btn <?php echo $hasCheckedIn ? 'btn-secondary' : 'btn-success'; ?> btn-sm" 
+                                onclick="dailyCheckIn()" 
+                                <?php echo $hasCheckedIn ? 'disabled' : ''; ?>>
+                            <i class="fas fa-calendar-check me-1"></i>
+                            <?php echo $hasCheckedIn ? '✅ Bugün Giriş Yaptın!' : 'Günlük Check-In'; ?>
+                        </button>
+                        <button class="btn <?php echo $canSpin ? 'btn-warning' : 'btn-secondary'; ?> text-dark btn-sm" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#wheelModal"
+                                <?php echo !$canSpin ? 'disabled' : ''; ?>>
+                            <i class="fas fa-dharmachakra me-1"></i>
+                            <?php echo $canSpin ? 'Çarkı Çevir! 🎰' : '✅ Bugün Çevirdin'; ?>
+                        </button>
+                    </div>
+                <?php endif; ?>
+                
                 <div class="mb-3">
                     <span class="badge bg-info text-dark"><?php echo ucfirst($user['rol']); ?></span>
                     <?php if ($rol == 'musteri'): ?>
@@ -142,6 +190,18 @@ if ($rol == 'musteri') {
                                 <i class="fas fa-trophy me-2"></i>Ödüllerim
                             </button>
                         </li>
+                        <?php if ($rol == 'musteri'): ?>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold text-info" id="questler-tab" data-bs-toggle="tab" data-bs-target="#questler" type="button" role="tab">
+                                <i class="fas fa-tasks me-2"></i>Görevler
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold text-danger" id="favoriler-tab" data-bs-toggle="tab" data-bs-target="#favoriler" type="button" role="tab">
+                                <i class="fas fa-heart me-2"></i>Favorilerim
+                            </button>
+                        </li>
+                        <?php endif; ?>
                     </ul>
 
                     <!-- TAB İÇERİKLERİ -->
@@ -324,57 +384,135 @@ if ($rol == 'musteri') {
                                     <?php foreach ($puanGecmisi as $pg): ?>
                                         <li class="list-group-item d-flex justify-content-between">
                                             <span><?php echo $pg['aciklama']; ?></span>
-                                            <span class="<?php echo $pg['puan'] > 0 ? 'text-success' : 'text-danger'; ?> fw-bold">
-                                                <?php echo $pg['puan'] > 0 ? '+' : ''; ?><?php echo $pg['puan']; ?>
-                                            </span>
+                                            <span class="badge bg-light text-dark">+<?php echo $pg['puan']; ?> Puan</span>
                                         </li>
                                     <?php endforeach; ?>
                                 </ul>
                             </div>
                         </div>
 
-                    </div>
-
-            <!-- FAVORİ TESİSLERİM -->
-            <div class="card shadow-sm border-0 mt-4">
-                <div class="card-header bg-white py-3">
-                    <h5 class="mb-0 fw-bold text-danger"><i class="fas fa-heart me-2"></i>Favori Tesislerim</h5>
-                </div>
-                <div class="card-body">
-                    <?php
-                        // Favorileri Çek
-                        $stmtF = $pdo->prepare("CALL sp_KullaniciFavorileri(?)");
-                        $stmtF->execute([$kullanici_id]);
-                        $favoriler = $stmtF->fetchAll();
-                        $stmtF->closeCursor();
-                    ?>
-                    
-                    <?php if (count($favoriler) > 0): ?>
-                        <div class="row row-cols-1 row-cols-md-2 g-3">
-                            <?php foreach ($favoriler as $fav): ?>
-                                <div class="col">
-                                    <div class="card h-100 border-0 shadow-sm bg-light">
-                                        <div class="card-body d-flex align-items-center">
-                                            <img src="<?php echo !empty($fav['kapak_resmi']) ? $fav['kapak_resmi'] : 'https://via.placeholder.com/80'; ?>" 
-                                                 class="rounded me-3" width="60" height="60" style="object-fit: cover;">
+                        <!-- 5. GÖREVLER (QUESTS) -->
+                        <div class="tab-pane fade" id="questler" role="tabpanel">
+                            <div class="p-3">
+                                <!-- GÜNLÜK GÖREVLER -->
+                                <h6 class="fw-bold mb-3 text-primary"><i class="fas fa-sun me-2 text-warning"></i>Günlük Görevler</h6>
+                                <div class="list-group mb-4">
+                                    <?php foreach ($dailyQuests as $quest): ?>
+                                        <div class="list-group-item d-flex justify-content-between align-items-center <?php echo $quest['tamamlandi'] ? 'bg-light' : ''; ?>">
+                                            <div class="d-flex align-items-center">
+                                                <div class="me-3 text-center" style="width: 40px;">
+                                                    <i class="<?php echo $quest['ikon']; ?> fa-lg <?php echo $quest['tamamlandi'] ? 'text-success' : 'text-muted'; ?>"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="fw-bold mb-0 <?php echo $quest['tamamlandi'] ? 'text-decoration-line-through text-muted' : ''; ?>">
+                                                        <?php echo $quest['baslik']; ?>
+                                                    </h6>
+                                                    <small class="text-muted"><?php echo $quest['aciklama']; ?></small>
+                                                    
+                                                    <?php if (!$quest['tamamlandi']): ?>
+                                                        <div class="progress mt-1" style="height: 5px; width: 150px;">
+                                                            <div class="progress-bar bg-warning" role="progressbar" 
+                                                                 style="width: <?php echo ($quest['ilerleme'] / $quest['hedef_sayi']) * 100; ?>%"></div>
+                                                        </div>
+                                                        <small class="text-muted" style="font-size: 0.7rem;">
+                                                            <?php echo $quest['ilerleme']; ?>/<?php echo $quest['hedef_sayi']; ?>
+                                                        </small>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
                                             <div>
-                                                <h6 class="fw-bold mb-1">
-                                                    <a href="tesis_detay.php?id=<?php echo $fav['tesis_id']; ?>" class="text-dark text-decoration-none stretched-link">
-                                                        <?php echo $fav['tesis_adi']; ?>
-                                                    </a>
-                                                </h6>
-                                                <small class="text-muted"><?php echo $fav['ilce_adi'] . '/' . $fav['sehir_adi']; ?></small>
+                                                <?php if ($quest['tamamlandi']): ?>
+                                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Tamamlandı</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-light text-dark border">+<?php echo $quest['odul_puan']; ?> Puan</span>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
-                                    </div>
+                                    <?php endforeach; ?>
                                 </div>
-                            <?php endforeach; ?>
+                                
+                                <hr>
+                                
+                                <h6 class="fw-bold mb-3 text-primary"><i class="fas fa-calendar-week me-2 text-info"></i>Haftalık Görevler</h6>
+                                <div class="list-group">
+                                    <?php foreach ($weeklyQuests as $quest): ?>
+                                        <div class="list-group-item d-flex justify-content-between align-items-center <?php echo $quest['tamamlandi'] ? 'bg-light' : ''; ?>">
+                                            <div class="d-flex align-items-center">
+                                                <div class="me-3 text-center" style="width: 40px;">
+                                                    <i class="<?php echo $quest['ikon']; ?> fa-lg <?php echo $quest['tamamlandi'] ? 'text-success' : 'text-muted'; ?>"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="fw-bold mb-0 <?php echo $quest['tamamlandi'] ? 'text-decoration-line-through text-muted' : ''; ?>">
+                                                        <?php echo $quest['baslik']; ?>
+                                                    </h6>
+                                                    <small class="text-muted"><?php echo $quest['aciklama']; ?></small>
+                                                    
+                                                    <?php if (!$quest['tamamlandi']): ?>
+                                                        <div class="progress mt-1" style="height: 5px; width: 150px;">
+                                                            <div class="progress-bar bg-info" role="progressbar" 
+                                                                 style="width: <?php echo ($quest['ilerleme'] / $quest['hedef_sayi']) * 100; ?>%"></div>
+                                                        </div>
+                                                        <small class="text-muted" style="font-size: 0.7rem;">
+                                                            <?php echo $quest['ilerleme']; ?>/<?php echo $quest['hedef_sayi']; ?>
+                                                        </small>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <?php if ($quest['tamamlandi']): ?>
+                                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Tamamlandı</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-light text-dark border">+<?php echo $quest['odul_puan']; ?> Puan</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
                         </div>
-                    <?php else: ?>
-                        <p class="text-muted text-center mb-0">Henüz favori tesisiniz yok.</p>
-                    <?php endif; ?>
-                </div>
-            </div>
+
+                        <!-- 6. FAVORİLER -->
+                        <div class="tab-pane fade" id="favoriler" role="tabpanel">
+                            <div class="p-3">
+                                <?php
+                                    // Favorileri Çek
+                                    $stmtF = $pdo->prepare("CALL sp_KullaniciFavorileri(?)");
+                                    $stmtF->execute([$kullanici_id]);
+                                    $favoriler = $stmtF->fetchAll();
+                                    $stmtF->closeCursor();
+                                ?>
+                                
+                                <?php if (count($favoriler) > 0): ?>
+                                    <div class="row row-cols-1 row-cols-md-2 g-3">
+                                        <?php foreach ($favoriler as $fav): ?>
+                                            <div class="col">
+                                                <div class="card h-100 border-0 shadow-sm bg-light">
+                                                    <div class="card-body d-flex align-items-center">
+                                                        <img src="<?php echo !empty($fav['kapak_resmi']) ? $fav['kapak_resmi'] : 'https://via.placeholder.com/80'; ?>" 
+                                                             class="rounded me-3" width="60" height="60" style="object-fit: cover;">
+                                                        <div>
+                                                            <h6 class="fw-bold mb-1">
+                                                                <a href="tesis_detay.php?id=<?php echo $fav['tesis_id']; ?>" class="text-dark text-decoration-none stretched-link">
+                                                                    <?php echo $fav['tesis_adi']; ?>
+                                                                </a>
+                                                            </h6>
+                                                            <small class="text-muted"><?php echo $fav['ilce_adi'] . '/' . $fav['sehir_adi']; ?></small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="text-center py-5">
+                                        <i class="far fa-heart fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted mb-0">Henüz favori tesisiniz yok.</p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                    </div>
 
                 </div>
             </div>
@@ -450,6 +588,213 @@ function redeemCoupon(kuponId) {
     .catch(error => console.error('Hata:', error));
 }
 </script>
+
+<script>
+// GÜNLÜK CHECK-IN
+function dailyCheckIn() {
+    fetch('ajax_checkin.php', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Başarılı modalı göster
+            let message = `
+                <div class="text-center">
+                    <i class="fas fa-check-circle text-success fa-4x mb-3"></i>
+                    <h4>Harika!</h4>
+                    <p class="lead">${data.message}</p>
+                    <div class="badge bg-warning text-dark fs-6 p-2">
+                        🔥 ${data.streak} Gün Streak
+                    </div>
+                </div>
+            `;
+            
+            if (data.bonus_earned) {
+                message += `
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-gift me-2"></i> BONUS KAZANDINIZ!
+                    </div>
+                `;
+            }
+            
+            // Basit bir alert yerine özel modal kullanılabilir ama şimdilik reload
+            alert("Tebrikler! Check-in başarılı.\n+" + data.puan + " Puan kazandınız!");
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => console.error('Hata:', error));
+}
+
+// ÇARK ÇEVİRME
+let wheelSpinning = false;
+
+
+
+// Çarkı Çizme Fonksiyonu
+function drawWheel() {
+    const canvas = document.getElementById('wheelCanvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) / 2 - 10;
+    
+    // Ödüller (WheelService.php'den alındı)
+    const segments = [
+        { label: '10 Puan', color: '#FFC107', text: '#000' },
+        { label: '25 Puan', color: '#FF9800', text: '#FFF' },
+        { label: '50 Puan', color: '#FF5722', text: '#FFF' },
+        { label: '75 Puan', color: '#F44336', text: '#FFF' },
+        { label: '100 Puan', color: '#E91E63', text: '#FFF' },
+        { label: '200 Puan', color: '#9C27B0', text: '#FFF' },
+        { label: '%10 İndirim', color: '#3F51B5', text: '#FFF' },
+        { label: 'Şanslı Rozet', color: '#00BCD4', text: '#FFF' }
+    ];
+    
+    const segmentAngle = (2 * Math.PI) / segments.length;
+    
+    // Temizle
+    ctx.clearRect(0, 0, width, height);
+    
+    // Dilimleri çiz
+    segments.forEach((segment, i) => {
+        const startAngle = i * segmentAngle;
+        const endAngle = (i + 1) * segmentAngle;
+        
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+        ctx.closePath();
+        
+        ctx.fillStyle = segment.color;
+        ctx.fill();
+        ctx.stroke();
+        
+        // Metin
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(startAngle + segmentAngle / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = segment.text;
+        ctx.font = "bold 14px Arial";
+        ctx.fillText(segment.label, radius - 20, 5);
+        ctx.restore();
+    });
+    
+    // Dış çember
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#333';
+    ctx.stroke();
+    
+    // İç çember (Merkez)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
+    ctx.fillStyle = '#FFF';
+    ctx.fill();
+    ctx.stroke();
+    
+    // Ok işareti (Sağ tarafta)
+    ctx.beginPath();
+    ctx.moveTo(width - 10, centerY);
+    ctx.lineTo(width + 10, centerY - 10);
+    ctx.lineTo(width + 10, centerY + 10);
+    ctx.closePath();
+    ctx.fillStyle = '#333';
+    ctx.fill();
+}
+
+// Çark Çevirme Fonksiyonu (Vanilla JS Modal Kapatma)
+function spinWheel() {
+    if (wheelSpinning) return;
+    wheelSpinning = true;
+    
+    const spinButton = document.querySelector('#wheelModal button.btn-primary');
+    spinButton.disabled = true;
+    spinButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Çevriliyor...';
+    
+    // API isteği
+    fetch('ajax_wheel.php', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Animasyon simülasyonu
+            let duration = 3000; // 3 saniye
+            let start = null;
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Basit dönme animasyonu
+            function animate(timestamp) {
+                if (!start) start = timestamp;
+                let progress = timestamp - start;
+                
+                if (progress < duration) {
+                    // Dönme efekti için canvas'ı döndür
+                    // Gerçekçi bir dönme için tüm çizimi döndürmek gerekir
+                    // Şimdilik sadece bekleme süresi olarak kalsın, görsel dönme sonra eklenebilir
+                    requestAnimationFrame(animate);
+                } else {
+                    // Bitti
+                    wheelSpinning = false;
+                    
+                    // Modalı kapat (Vanilla JS)
+                    const modalInstance = bootstrap.Modal.getInstance(wheelModalEl);
+                    modalInstance.hide();
+                    
+                    // Sonuç göster
+                    alert(data.message);
+                    location.reload();
+                }
+            }
+            requestAnimationFrame(animate);
+            
+        } else {
+            wheelSpinning = false;
+            spinButton.disabled = false;
+            spinButton.innerText = 'Çevir!';
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        wheelSpinning = false;
+        spinButton.disabled = false;
+        spinButton.innerText = 'Çevir!';
+        console.error('Hata:', error);
+        alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+    });
+}
+</script>
+
+<!-- ÇARK MODALI -->
+<div class="modal fade" id="wheelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title fw-bold text-dark"><i class="fas fa-dharmachakra me-2"></i>Şans Çarkı</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center bg-light">
+        <div class="mb-3">
+            <canvas id="wheelCanvas" width="400" height="400" style="max-width: 100%;"></canvas>
+        </div>
+        <p class="text-muted">Her gün 1 kez çevirme hakkın var!</p>
+        <button class="btn btn-primary btn-lg px-5 rounded-pill shadow" onclick="spinWheel()">
+            <i class="fas fa-sync-alt me-2"></i>Çevir!
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- İPTAL MODALI -->
 <div class="modal fade" id="iptalModal" tabindex="-1" aria-hidden="true">
