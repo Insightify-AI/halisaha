@@ -646,7 +646,10 @@ if ($rol == 'musteri') {
                         <div class="tab-pane fade" id="questler" role="tabpanel">
                             <div class="p-3">
                                 <!-- GÜNLÜK GÖREVLER -->
-                                <h6 class="fw-bold mb-3 text-primary"><i class="fas fa-sun me-2 text-warning"></i>Günlük Görevler</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="fw-bold text-primary mb-0"><i class="fas fa-sun me-2 text-warning"></i>Günlük Görevler</h6>
+                                    <span class="badge bg-light text-dark border" id="dailyCountdown"><i class="fas fa-clock me-1"></i>--:--:--</span>
+                                </div>
                                 <div class="list-group mb-4">
                                     <?php foreach ($dailyQuests as $quest): ?>
                                         <div class="list-group-item d-flex justify-content-between align-items-center <?php echo $quest['tamamlandi'] ? 'bg-light' : ''; ?>">
@@ -684,7 +687,10 @@ if ($rol == 'musteri') {
                                 
                                 <hr>
                                 
-                                <h6 class="fw-bold mb-3 text-primary"><i class="fas fa-calendar-week me-2 text-info"></i>Haftalık Görevler</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="fw-bold text-primary mb-0"><i class="fas fa-calendar-week me-2 text-info"></i>Haftalık Görevler</h6>
+                                    <span class="badge bg-light text-dark border" id="weeklyCountdown"><i class="fas fa-clock me-1"></i>--:--:--</span>
+                                </div>
                                 <div class="list-group">
                                     <?php foreach ($weeklyQuests as $quest): ?>
                                         <div class="list-group-item d-flex justify-content-between align-items-center <?php echo $quest['tamamlandi'] ? 'bg-light' : ''; ?>">
@@ -770,7 +776,6 @@ if ($rol == 'musteri') {
         </div>
     </div>
 </div>
-
 <!-- YORUM MODALI (Sayfanın en altında, container dışında) -->
 <div class="modal fade" id="yorumModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -784,26 +789,22 @@ if ($rol == 'musteri') {
             <input type="hidden" name="tesis_id" id="modalTesisId">
             <input type="hidden" name="yorum_id" id="modalYorumId">
             
-            <p class="text-center fs-5">
-                <strong id="modalTesisAdi" class="text-primary">Tesis Adı</strong> deneyimin nasıldı?
-            </p>
-
-            <div class="mb-3 text-center">
-                <label class="form-label d-block text-muted">Puanın</label>
-                <select name="puan" id="modalPuan" class="form-select form-select-lg text-center mx-auto" style="width: 150px;" required>
-                    <option value="5">⭐⭐⭐⭐⭐ (5)</option>
-                    <option value="4">⭐⭐⭐⭐ (4)</option>
-                    <option value="3">⭐⭐⭐ (3)</option>
-                    <option value="2">⭐⭐ (2)</option>
-                    <option value="1">⭐ (1)</option>
+            <div class="mb-3">
+                <label for="modalPuan" class="form-label">Puanınız</label>
+                <select class="form-select" name="puan" id="modalPuan" required>
+                    <option value="5">5 - Çok İyi</option>
+                    <option value="4">4 - İyi</option>
+                    <option value="3">3 - Orta</option>
+                    <option value="2">2 - Kötü</option>
+                    <option value="1">1 - Çok Kötü</option>
                 </select>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Yorumun</label>
-                <textarea name="yorum" id="modalYorum" class="form-control" rows="3" placeholder="Zemin nasıldı? Soyunma odaları temiz miydi?" required></textarea>
+                <label for="modalYorum" class="form-label">Yorumunuz</label>
+                <textarea class="form-control" name="yorum" id="modalYorum" rows="3" required placeholder="Deneyimlerinizi paylaşın..."></textarea>
             </div>
-            
+
             <div class="mb-3">
                 <label class="form-label">Fotoğraf Ekle (İsteğe bağlı)</label>
                 <input type="file" name="resim" id="modalResim" class="form-control" accept="image/jpeg,image/jpg,image/png,image/webp">
@@ -1211,5 +1212,44 @@ function spinWheel() {
     </div>
   </div>
 </div>
+
+<script>
+function updateCountdowns() {
+    const now = new Date();
+    
+    // Günlük Reset (Gece 00:00)
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
+    let diffDaily = tomorrow - now;
+    
+    // Haftalık Reset (Pazartesi 00:00)
+    const nextMonday = new Date(now);
+    nextMonday.setDate(now.getDate() + ((7 - now.getDay() + 1) % 7 || 7));
+    nextMonday.setHours(0, 0, 0, 0);
+    
+    let diffWeekly = nextMonday - now;
+    
+    // Formatlama
+    function formatTime(ms) {
+        const seconds = Math.floor((ms / 1000) % 60);
+        const minutes = Math.floor((ms / (1000 * 60)) % 60);
+        const hours = Math.floor((ms / (1000 * 60 * 60)));
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    // Güncelle
+    const dailyEl = document.getElementById('dailyCountdown');
+    if (dailyEl) dailyEl.innerHTML = '<i class="fas fa-clock me-1"></i>' + formatTime(diffDaily);
+    
+    const weeklyEl = document.getElementById('weeklyCountdown');
+    if (weeklyEl) weeklyEl.innerHTML = '<i class="fas fa-clock me-1"></i>' + formatTime(diffWeekly);
+}
+
+// Her saniye güncelle
+setInterval(updateCountdowns, 1000);
+updateCountdowns(); // İlk yüklemede çalıştır
+</script>
 
 <?php include 'includes/footer.php'; ?>

@@ -32,8 +32,12 @@ class QuestService {
     /**
      * Görevleri getir (günlük veya haftalık)
      */
+    /**
+     * Görevleri getir (günlük veya haftalık)
+     */
     private function getQuests($userId, $type) {
-        $haftaNumarasi = date('oW'); // YEARWEEK formatı
+        // Günlük görevler için Ymd (örn: 20231025), Haftalık için oW (örn: 202343)
+        $donemKodu = ($type == 'gunluk') ? date('Ymd') : date('oW');
         
         $stmt = $this->pdo->prepare("
             SELECT 
@@ -54,7 +58,7 @@ class QuestService {
             WHERE q.quest_tipi = ? AND q.aktif = 1
             ORDER BY q.sira ASC
         ");
-        $stmt->execute([$userId, $haftaNumarasi, $type]);
+        $stmt->execute([$userId, $donemKodu, $type]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
@@ -79,14 +83,16 @@ class QuestService {
             $questId = $quest['quest_id'];
             $hedefSayi = $quest['hedef_sayi'];
             $odul = $quest['odul_puan'];
-            $haftaNumarasi = date('oW');
+            
+            // Quest tipine göre dönem kodunu belirle
+            $donemKodu = ($quest['quest_tipi'] == 'gunluk') ? date('Ymd') : date('oW');
             
             // Mevcut ilerlemeyi al
             $stmt = $this->pdo->prepare("
                 SELECT * FROM KullaniciQuestleri 
                 WHERE kullanici_id = ? AND quest_id = ? AND hafta_numarasi = ?
             ");
-            $stmt->execute([$userId, $questId, $haftaNumarasi]);
+            $stmt->execute([$userId, $questId, $donemKodu]);
             $progress = $stmt->fetch();
             
             if (!$progress) {
@@ -105,7 +111,7 @@ class QuestService {
                     $yeniIlerleme, 
                     (int)$tamamlandi,
                     $tamamlandi ? date('Y-m-d H:i:s') : null,
-                    $haftaNumarasi
+                    $donemKodu
                 ]);
                 
                 // Tamamlandıysa ödül ver
@@ -150,7 +156,7 @@ class QuestService {
                     $tamamlandi ? date('Y-m-d H:i:s') : null,
                     $userId,
                     $questId,
-                    $haftaNumarasi
+                    $donemKodu
                 ]);
                 
                 // Yeni tamamlandıysa ödül ver
@@ -277,7 +283,7 @@ class QuestService {
             WHERE q.quest_tipi = 'gunluk' 
             AND kq.hafta_numarasi < ?
         ");
-        $stmt->execute([date('oW')]);
+        $stmt->execute([date('Ymd')]);
         
         return ['success' => true, 'message' => 'Günlük questler sıfırlandı'];
     }

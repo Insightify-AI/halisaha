@@ -47,6 +47,16 @@ $stmt->execute([$tesis_id]);
 $sahalar = $stmt->fetchAll();
 $stmt->closeCursor();
 
+// Kullanıcı bu tesisi favorilemiş mi kontrol et
+$isFavorited = false;
+if (isset($_SESSION['kullanici_id'])) {
+    $stmt = $pdo->prepare("SELECT COUNT(*) as favori_var FROM Favoriler WHERE kullanici_id = ? AND tesis_id = ?");
+    $stmt->execute([$_SESSION['kullanici_id'], $tesis_id]);
+    $result = $stmt->fetch();
+    $isFavorited = ($result['favori_var'] > 0);
+}
+
+
 // Yorumları Çek (Kullanıcı bilgileriyle birlikte)
 $stmt = $pdo->prepare("
     SELECT y.*, k.ad, k.soyad,
@@ -119,9 +129,20 @@ if (isset($_SESSION['kullanici_id']) && $_SESSION['rol'] == 'musteri') {
                         </div>
                         <!-- DİNAMİK PUAN ROZETİ VE FAVORİ BUTONU -->
                         <div class="d-flex align-items-center gap-2">
-                            <button class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" id="favoriBtn" onclick="favoriToggle(<?php echo $tesis_id; ?>)" title="Favorilere Ekle">
-                                <i class="far fa-heart"></i>
-                            </button>
+                            <?php if (isset($_SESSION['kullanici_id'])): ?>
+                                <button class="btn btn-<?php echo $isFavorited ? 'danger' : 'outline-danger'; ?> btn-sm rounded-circle shadow-sm" 
+                                        id="favoriBtn" 
+                                        onclick="favoriToggle(<?php echo $tesis_id; ?>)" 
+                                        title="<?php echo $isFavorited ? 'Favorilerden Çıkar' : 'Favorilere Ekle'; ?>">
+                                    <i class="<?php echo $isFavorited ? 'fas' : 'far'; ?> fa-heart"></i>
+                                </button>
+                            <?php else: ?>
+                                <button class="btn btn-outline-danger btn-sm rounded-circle shadow-sm" 
+                                        onclick="alert('Favori eklemek için giriş yapmalısınız!'); window.location.href='login.php';" 
+                                        title="Favorilere Ekle">
+                                    <i class="far fa-heart"></i>
+                                </button>
+                            <?php endif; ?>
                             <span class="badge bg-success fs-6 p-2">
                                 <i class="fas fa-star text-warning"></i> 
                                 <?php echo isset($tesis['ortalama_puan']) ? number_format($tesis['ortalama_puan'], 1) : '5.0'; ?> / 5
@@ -482,7 +503,8 @@ function voteComment(yorumId, action) {
         } else {
             alert(data.message);
         }
-    })\n    .catch(error => console.error('Hata:', error));
+    })
+    .catch(error => console.error('Hata:', error));
 }
 
 // Lightbox Fonksiyonu
