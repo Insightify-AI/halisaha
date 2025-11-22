@@ -51,6 +51,7 @@ if (session_status() === PHP_SESSION_NONE) {
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="profil.php">Profilim</a></li>
+                    <li><a class="dropdown-item" href="cuzdan.php"><i class="fas fa-wallet me-2 text-success"></i>Cüzdanım</a></li>
                     <?php if($_SESSION['rol'] == 'admin'): ?>
                         <li><a class="dropdown-item" href="admin_panel.php">Yönetim Paneli</a></li>
                     <?php elseif($_SESSION['rol'] == 'tesis_sahibi'): ?>
