@@ -1,6 +1,25 @@
 <?php
 require_once 'includes/db.php';
 include 'includes/header.php';
+?>
+<style>
+    .profile-logo {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+    }
+    
+    .profile-logo i {
+        font-size: 3rem;
+        color: #fff;
+    }
+</style>
+<?php
 
 // 1. GÜVENLİK: Giriş yapmamışsa Login'e at
 if (!isset($_SESSION['kullanici_id'])) {
@@ -15,6 +34,163 @@ $rol = $_SESSION['rol'];
 $stmt = $pdo->prepare("SELECT * FROM Kullanicilar WHERE kullanici_id = ?");
 $stmt->execute([$kullanici_id]);
 $user = $stmt->fetch();
+
+// TESİS SAHİBİ İSE ÖZELLEŞTİRİLMİŞ GÖRÜNÜM
+if ($rol == 'tesis_sahibi') {
+    $sahip_id = $_SESSION['rol_id'];
+    
+    // Tesis sahibinin tesislerini çek
+    $stmt = $pdo->prepare("CALL sp_SahipTesisleriGetir(?)");
+    $stmt->execute([$sahip_id]);
+    $tesislerim = $stmt->fetchAll();
+    $stmt->closeCursor();
+    
+    // Son rezervasyonları çek
+    $stmt = $pdo->prepare("CALL sp_SahipGelenRezervasyonlar(?)");
+    $stmt->execute([$sahip_id]);
+    $son_rezervasyonlar = $stmt->fetchAll();
+    $stmt->closeCursor();
+    ?>
+    <style>
+        .profile-logo {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #198754 0%, #146c43 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3);
+        }
+        
+        .profile-logo i {
+            font-size: 3rem;
+            color: #fff;
+        }
+    </style>
+    
+    <div class="container mb-5">
+        <div class="row mt-4">
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm border-0 text-center p-4">
+                    <div class="mb-3">
+                        <div class="profile-logo mx-auto">
+                            <i class="fas fa-building"></i>
+                        </div>
+                    </div>
+                    <h4 class="fw-bold"><?php echo htmlspecialchars($user['ad'] . ' ' . $user['soyad']); ?></h4>
+                    <p class="text-muted mb-1"><?php echo $user['eposta']; ?></p>
+                    
+                    <div class="mb-3">
+                        <span class="badge bg-success">Tesis Sahibi</span>
+                    </div>
+                    
+                    <!-- Bakiye Gösterimi -->
+                    <div class="mb-3 p-3 rounded" style="background: linear-gradient(135deg, #198754 0%, #146c43 100%);">
+                        <div class="text-white text-center">
+                            <i class="fas fa-wallet fa-2x mb-2"></i>
+                            <h3 class="mb-0 fw-bold"><?php echo number_format($user['bakiye'], 2); ?> ₺</h3>
+                            <small>Mevcut Bakiye</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="tesislerim.php" class="btn btn-success btn-sm">
+                            <i class="fas fa-building me-1"></i> Tesislerim
+                        </a>
+                        <a href="cuzdan.php" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-wallet me-1"></i> Cüzdan İşlemleri
+                        </a>
+                        <a href="logout.php" class="btn btn-outline-danger btn-sm">
+                            <i class="fas fa-sign-out-alt me-1"></i> Çıkış Yap
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-building me-2"></i>Tesislerim</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if (count($tesislerim) > 0): ?>
+                            <div class="list-group">
+                                <?php foreach (array_slice($tesislerim, 0, 5) as $tesis): ?>
+                                    <a href="tesis_detay.php?id=<?php echo $tesis['tesis_id']; ?>" 
+                                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-0"><?php echo $tesis['tesis_adi']; ?></h6>
+                                            <small class="text-muted"><?php echo $tesis['adres']; ?></small>
+                                        </div>
+                                        <?php if($tesis['onay_durumu'] == 1): ?>
+                                            <span class="badge bg-success">Yayında</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-warning text-dark">Onay Bekliyor</span>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                            <a href="tesislerim.php" class="btn btn-outline-success w-100 mt-3">Tümünü Gör</a>
+                        <?php else: ?>
+                            <p class="text-muted text-center py-3">Henüz tesis eklemediniz.</p>
+                            <a href="tesis_ekle.php" class="btn btn-success w-100">
+                                <i class="fas fa-plus me-1"></i> İlk Tesisinizi Ekleyin
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Son Rezervasyonlar</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php if (count($son_rezervasyonlar) > 0): ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Tarih</th>
+                                            <th>Tesis</th>
+                                            <th>Tutar</th>
+                                            <th>Durum</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach (array_slice($son_rezervasyonlar, 0, 5) as $rez): ?>
+                                            <tr>
+                                                <td><?php echo date("d.m.Y", strtotime($rez['tarih'])); ?></td>
+                                                <td><?php echo $rez['tesis_adi']; ?></td>
+                                                <td><?php echo number_format($rez['tutar'], 0); ?> ₺</td>
+                                                <td>
+                                                    <?php if($rez['durum'] == 'onay_bekliyor'): ?>
+                                                        <span class="badge bg-warning text-dark">Bekliyor</span>
+                                                    <?php elseif($rez['durum'] == 'onaylandi'): ?>
+                                                        <span class="badge bg-success">Onaylı</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-secondary"><?php echo $rez['durum']; ?></span>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <a href="tesislerim.php" class="btn btn-outline-dark w-100 mt-3">Tüm Rezervasyonlar</a>
+                        <?php else: ?>
+                            <p class="text-muted text-center py-3">Henüz rezervasyon yok.</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <?php
+    include 'includes/footer.php';
+    exit; // Tesis sahibi için burada bitir
+}
 
 // 3. REZERVASYONLARI ÇEK (Sadece Müşteriyse)
 $rezervasyonlar = [];
@@ -121,7 +297,9 @@ if ($rol == 'musteri') {
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm border-0 text-center p-4">
                 <div class="mb-3">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" width="120" class="rounded-circle img-thumbnail">
+                    <div class="profile-logo mx-auto">
+                        <i class="fas fa-futbol"></i>
+                    </div>
                 </div>
                 <h4 class="fw-bold"><?php echo htmlspecialchars($user['ad'] . ' ' . $user['soyad']); ?></h4>
                 <p class="text-muted mb-1"><?php echo $user['eposta']; ?></p>

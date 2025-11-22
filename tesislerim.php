@@ -10,14 +10,37 @@ if (!isset($_SESSION['kullanici_id']) || $_SESSION['rol'] != 'tesis_sahibi') {
 
 $sahip_id = $_SESSION['rol_id'];
 
-// 2. İŞLEM: Rezervasyon Onaylama
+// 2. İŞLEM: Rezervasyon Onaylama/Reddetme
 $mesaj = "";
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['rez_id'])) {
     $rez_id = $_POST['rez_id'];
-    $yeni_durum = ($_POST['islem'] == 'onayla') ? 'onaylandi' : 'iptal';
-    $stmtUpd = $pdo->prepare("UPDATE Rezervasyonlar SET durum = ? WHERE rezervasyon_id = ?");
-    if ($stmtUpd->execute([$yeni_durum, $rez_id])) {
-        $mesaj = "<div class='alert alert-success'>İşlem başarılı!</div>";
+    $islem = $_POST['islem'];
+    
+    if ($islem == 'onayla') {
+        try {
+            // Stored Procedure ile otomatik ödeme dağıtımı
+            $stmt = $pdo->prepare("CALL sp_RezervasyonOnayla(?, ?)");
+            $stmt->execute([$rez_id, $sahip_id]);
+            $result = $stmt->fetch();
+            $stmt->closeCursor();
+            
+            if ($result && $result['status'] == 'SUCCESS') {
+                $kazanc = number_format($result['kazanc'], 2);
+                $mesaj = "<div class='alert alert-success'>
+                    <i class='fas fa-check-circle me-2'></i>
+                    Rezervasyon onaylandı! Hesabınıza <strong>{$kazanc}₺</strong> eklendi. 
+                    <small class='d-block mt-1'>(%5 sistem komisyonu düşüldü)</small>
+                </div>";
+            }
+        } catch (PDOException $e) {
+            $mesaj = "<div class='alert alert-danger'>Hata: " . $e->getMessage() . "</div>";
+        }
+    } else {
+        // Reddetme işlemi - basit durum güncellemesi
+        $stmtUpd = $pdo->prepare("UPDATE Rezervasyonlar SET durum = 'iptal' WHERE rezervasyon_id = ?");
+        if ($stmtUpd->execute([$rez_id])) {
+            $mesaj = "<div class='alert alert-warning'>Rezervasyon reddedildi.</div>";
+        }
     }
 }
 

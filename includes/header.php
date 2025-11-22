@@ -21,6 +21,27 @@ if (session_status() === PHP_SESSION_NONE) {
     <style>
         body { background-color: #f8f9fa; }
         .navbar { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        /* Logo Styling */
+        .logo-container {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .logo-container i {
+            color: #fff;
+            font-size: 1.3rem;
+        }
+        
+        .navbar-brand:hover .logo-container {
+            transform: rotate(360deg);
+        }
     </style>
 </head>
 <body>
@@ -28,8 +49,11 @@ if (session_status() === PHP_SESSION_NONE) {
 <!-- NAVBAR (MENÜ) -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
   <div class="container">
-    <a class="navbar-brand" href="index.php">
-        <i class="fas fa-futbol me-2"></i>Rezervasyon Sistemi
+    <a class="navbar-brand d-flex align-items-center" href="index.php">
+        <div class="logo-container me-2">
+            <i class="fas fa-futbol"></i>
+        </div>
+        <span class="fw-bold">Halı Saha</span>
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
