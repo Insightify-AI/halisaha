@@ -42,6 +42,7 @@ class StreakService {
             require_once 'QuestService.php';
             $questService = new QuestService($this->pdo);
             $questService->updateQuestProgress($userId, 'gunluk_checkin');
+            $questService->updateQuestProgress($userId, 'streak_7');
             
             return [
                 'success' => true,

@@ -103,7 +103,7 @@ class QuestService {
                     $userId, 
                     $questId, 
                     $yeniIlerleme, 
-                    $tamamlandi,
+                    (int)$tamamlandi,
                     $tamamlandi ? date('Y-m-d H:i:s') : null,
                     $haftaNumarasi
                 ]);
@@ -146,7 +146,7 @@ class QuestService {
                 ");
                 $stmt->execute([
                     $yeniIlerleme,
-                    $tamamlandi,
+                    (int)$tamamlandi,
                     $tamamlandi ? date('Y-m-d H:i:s') : null,
                     $userId,
                     $questId,
