@@ -27,6 +27,11 @@ if (session_status() === PHP_SESSION_NONE) {
         .navbar-brand:hover .logo-container {
             transform: rotate(360deg);
         }
+        
+        .bg-orange {
+            background-color: #fd7e14 !important;
+            color: white;
+        }
     </style>
 </head>
 <body>

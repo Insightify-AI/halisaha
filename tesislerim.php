@@ -160,7 +160,7 @@ $stmt->closeCursor();
                                         <?php echo $rez['tesis_adi']; ?><br>
                                         <small class="text-muted"><?php echo $rez['saha_adi']; ?></small>
                                     </td>
-                                    <td><?php echo $rez['ad'] . ' ' . $rez['soyad']; ?></td>
+                                    <td><?php echo $rez['musteri_ad'] . ' ' . $rez['musteri_soyad']; ?></td>
                                     <td class="text-success fw-bold"><?php echo number_format($rez['tutar'],0); ?> ₺</td>
                                     <td>
                                         <?php if($rez['durum'] == 'onay_bekliyor'): ?>
