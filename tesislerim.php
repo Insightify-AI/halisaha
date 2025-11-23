@@ -36,16 +36,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['rez_id'])) {
             $mesaj = "<div class='alert alert-danger'>Hata: " . $e->getMessage() . "</div>";
         }
     } else {
-        // Reddetme işlemi - basit durum güncellemesi
-        $stmtUpd = $pdo->prepare("UPDATE Rezervasyonlar SET durum = 'iptal' WHERE rezervasyon_id = ?");
-        if ($stmtUpd->execute([$rez_id])) {
-            $mesaj = "<div class='alert alert-warning'>Rezervasyon reddedildi.</div>";
+        // REDDETME İŞLEMİ - Para iadesi ile birlikte
+        try {
+            $stmt = $pdo->prepare("CALL sp_RezervasyonReddetVeIade(?)");
+            $stmt->execute([$rez_id]);
+            $result = $stmt->fetch();
+            $stmt->closeCursor();
+            
+            if ($result && $result['status'] == 'SUCCESS') {
+                $iade_tutari = number_format($result['iade_tutari'], 2);
+                $mesaj = "<div class='alert alert-warning'>
+                    <i class='fas fa-times-circle me-2'></i>
+                    Rezervasyon reddedildi ve müşteriye <strong>{$iade_tutari}₺</strong> iade yapıldı.
+                </div>";
+            }
+        } catch (PDOException $e) {
+            $mesaj = "<div class='alert alert-danger'>Hata: " . $e->getMessage() . "</div>";
         }
     }
 }
 
 // 3. VERİLERİ ÇEK
-// A) Sahibin Tesisleri (Yeni eklediğimiz prosedür)
+// A) Sahibin Tesisleri
 $stmt = $pdo->prepare("CALL sp_SahipTesisleriGetir(?)");
 $stmt->execute([$sahip_id]);
 $tesislerim = $stmt->fetchAll();
