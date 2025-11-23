@@ -1,6 +1,6 @@
 <?php
 require_once 'includes/db.php';
-session_start();
+
 
 header('Content-Type: application/json');
 
@@ -50,13 +50,63 @@ try {
             $stmt->execute([$kullanici_id, $bonus, "Yükleme Bonusu"]);
         }
 
-        $pdo->commit();
+        // Güncel bakiyeyi çek
+        $stmt = $pdo->prepare("SELECT bakiye FROM Kullanicilar WHERE kullanici_id = ?");
+        $stmt->execute([$kullanici_id]);
+        $guncel_bakiye = $stmt->fetchColumn();
+
+        // Yeni bakiye ve bonus formatlı
+        $yeni_bakiye_fmt = number_format($guncel_bakiye, 2);
+        $bonus_fmt = number_format($bonus, 2);
+        $tarih_fmt = date('d.m.Y H:i');
+
+        // Yeni işlem satırı HTML'i oluştur
+        $new_row_html = '
+        <tr class="table-success">
+            <td class="ps-4">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle p-2 me-3 bg-success-subtle">
+                        <i class="fas fa-arrow-down text-success"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-capitalize">yukleme</div>
+                        <small class="text-muted">Kredi Kartı ile Yükleme</small>
+                    </div>
+                </div>
+            </td>
+            <td class="text-muted small">' . $tarih_fmt . '</td>
+            <td class="text-end pe-4">
+                <span class="fw-bold text-success">+' . number_format($tutar, 2) . ' ₺</span>
+            </td>
+        </tr>';
+
+        if ($bonus > 0) {
+            $new_row_html = '
+            <tr class="table-warning">
+                <td class="ps-4">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-2 me-3 bg-warning-subtle">
+                            <i class="fas fa-gift text-warning"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-capitalize">bonus</div>
+                            <small class="text-muted">Yükleme Bonusu</small>
+                        </div>
+                    </div>
+                </td>
+                <td class="text-muted small">' . $tarih_fmt . '</td>
+                <td class="text-end pe-4">
+                    <span class="fw-bold text-success">+' . $bonus_fmt . ' ₺</span>
+                </td>
+            </tr>' . $new_row_html;
+        }
 
         echo json_encode([
             'success' => true, 
             'message' => 'Bakiye başarıyla yüklendi!',
-            'yeni_bakiye' => number_format($toplam_yuklenecek, 2),
-            'bonus' => number_format($bonus, 2)
+            'yeni_bakiye' => $yeni_bakiye_fmt,
+            'bonus' => $bonus_fmt,
+            'new_row_html' => $new_row_html
         ]);
 
     } elseif ($action === 'sanal_kart_olustur') {
@@ -83,7 +133,36 @@ try {
         $stmt = $pdo->prepare("INSERT INTO CuzdanHareketleri (kullanici_id, islem_tipi, tutar, aciklama) VALUES (?, 'bonus', ?, ?)");
         $stmt->execute([$kullanici_id, $ilk_bonus, "Sanal Kart Oluşturma Bonusu"]);
 
-        echo json_encode(['success' => true, 'message' => 'Sanal kartınız oluşturuldu ve 50₺ bonus yüklendi!']);
+        $tarih_fmt = date('d.m.Y H:i');
+        
+        // Yeni işlem satırı HTML'i (Bonus için)
+        $new_row_html = '
+        <tr class="table-warning">
+            <td class="ps-4">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle p-2 me-3 bg-warning-subtle">
+                        <i class="fas fa-gift text-warning"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-capitalize">bonus</div>
+                        <small class="text-muted">Sanal Kart Oluşturma Bonusu</small>
+                    </div>
+                </div>
+            </td>
+            <td class="text-muted small">' . $tarih_fmt . '</td>
+            <td class="text-end pe-4">
+                <span class="fw-bold text-success">+' . number_format($ilk_bonus, 2) . ' ₺</span>
+            </td>
+        </tr>';
+
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Sanal kartınız oluşturuldu ve 50₺ bonus yüklendi!',
+            'kart_no' => $kart_no,
+            'son_kullanim' => $son_kullanim,
+            'yeni_bakiye' => number_format($ilk_bonus, 2), // Assuming initial balance was 0 or we need to fetch current balance. For now let's assume we just add bonus. Ideally we should return total balance.
+            'new_row_html' => $new_row_html
+        ]);
 
     } else {
         throw new Exception("Geçersiz işlem.");

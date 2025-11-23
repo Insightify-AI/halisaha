@@ -38,7 +38,7 @@ $hareketler = $stmt->fetchAll();
                     </div>
                     
                     <div class="mb-4">
-                        <h3 class="font-monospace mb-0" style="letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                        <h3 class="font-monospace mb-0" id="cardNumber" style="letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
                             <?php echo $kart ? $kart['kart_numarasi'] : '**** **** **** ****'; ?>
                         </h3>
                     </div>
@@ -50,7 +50,7 @@ $hareketler = $stmt->fetchAll();
                         </div>
                         <div class="text-end">
                             <small class="d-block opacity-75" style="font-size: 0.8rem;">SON KULLANMA</small>
-                            <span class="fw-bold"><?php echo $kart ? $kart['son_kullanma_tarihi'] : '**/**'; ?></span>
+                            <span class="fw-bold" id="cardExpiry"><?php echo $kart ? $kart['son_kullanma_tarihi'] : '**/**'; ?></span>
                         </div>
                     </div>
                     
@@ -61,7 +61,7 @@ $hareketler = $stmt->fetchAll();
             </div>
 
             <?php if (!$kart): ?>
-                <div class="alert alert-info shadow-sm border-0">
+                <div id="createCardSection" class="alert alert-info shadow-sm border-0">
                     <div class="d-flex align-items-center">
                         <i class="fas fa-gift fa-2x me-3 text-primary"></i>
                         <div>
@@ -78,7 +78,7 @@ $hareketler = $stmt->fetchAll();
                 <div class="card-body text-center p-4">
                     <h6 class="text-muted text-uppercase mb-2">Mevcut Bakiye</h6>
                     <h2 class="display-4 fw-bold text-success mb-3">
-                        <?php echo number_format($kullanici['bakiye'] ?? 0, 2); ?> <small class="fs-4 text-muted">₺</small>
+                        <span id="currentBalance"><?php echo number_format($kullanici['bakiye'] ?? 0, 2); ?></span> <small class="fs-4 text-muted">₺</small>
                     </h2>
                     <?php if ($kart): ?>
                         <button class="btn btn-success w-100 py-2 fw-bold" data-bs-toggle="modal" data-bs-target="#paraYukleModal">
@@ -110,7 +110,7 @@ $hareketler = $stmt->fetchAll();
                                     <th class="text-end pe-4">Tutar</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="transactionTableBody">
                                 <?php if (count($hareketler) > 0): ?>
                                     <?php foreach ($hareketler as $hareket): ?>
                                         <tr>
@@ -234,6 +234,11 @@ function tutarSec(tutar) {
 
 function sanalKartOlustur() {
     if(confirm('Sanal kart oluşturup 50₺ bonus kazanmak istiyor musunuz?')) {
+        const btn = document.querySelector('button[onclick="sanalKartOlustur()"]');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Oluşturuluyor...';
+
         const formData = new FormData();
         formData.append('action', 'sanal_kart_olustur');
 
@@ -244,11 +249,41 @@ function sanalKartOlustur() {
         .then(response => response.json())
         .then(data => {
             if(data.success) {
+                // Kart bilgilerini güncelle
+                document.getElementById('cardNumber').textContent = data.kart_no;
+                document.getElementById('cardExpiry').textContent = data.son_kullanim;
+                
+                // Bakiyeyi güncelle
+                // Eğer bakiye elementi varsa güncelle (kart oluşturulunca bakiye kısmı değişebilir ama biz yine de güncelleyelim)
+                const balanceEl = document.getElementById('currentBalance');
+                if(balanceEl) balanceEl.textContent = data.yeni_bakiye;
+
+                // Kart oluşturma bölümünü gizle
+                const createSection = document.getElementById('createCardSection');
+                if(createSection) createSection.style.display = 'none';
+
+                // Tabloya yeni satır ekle
+                const tbody = document.getElementById('transactionTableBody');
+                if(tbody) {
+                    // Eğer "işlem yok" mesajı varsa kaldır
+                    if(tbody.querySelector('td[colspan="3"]')) {
+                        tbody.innerHTML = '';
+                    }
+                    tbody.insertAdjacentHTML('afterbegin', data.new_row_html);
+                }
+
                 alert(data.message);
-                location.reload();
+                // Sayfayı yenilemeye gerek yok artık
             } else {
                 alert(data.message);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
+        })
+        .catch(err => {
+            alert('Bir hata oluştu: ' + err);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         });
     }
 }
@@ -256,8 +291,13 @@ function sanalKartOlustur() {
 function bakiyeYukle(e) {
     e.preventDefault();
     const tutar = document.getElementById('yuklenecekTutar').value;
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
     
     if(confirm(tutar + '₺ yüklemek istediğinize emin misiniz?')) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İşleniyor...';
+
         const formData = new FormData();
         formData.append('action', 'bakiye_yukle');
         formData.append('tutar', tutar);
@@ -269,11 +309,40 @@ function bakiyeYukle(e) {
         .then(response => response.json())
         .then(data => {
             if(data.success) {
+                // Bakiyeyi güncelle
+                const balanceEl = document.getElementById('currentBalance');
+                if (balanceEl) {
+                    balanceEl.textContent = data.yeni_bakiye;
+                }
+                
+                // Tabloya yeni satır ekle
+                const tbody = document.getElementById('transactionTableBody');
+                if(tbody) {
+                    if(tbody.querySelector('td[colspan="3"]')) {
+                        tbody.innerHTML = '';
+                    }
+                    tbody.insertAdjacentHTML('afterbegin', data.new_row_html);
+                }
+
+                // Modalı kapat
+                const modalEl = document.getElementById('paraYukleModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+
+                // Formu temizle
+                e.target.reset();
+
                 alert(data.message + '\nYeni Bakiye: ' + data.yeni_bakiye + '₺\nKazanılan Bonus: ' + data.bonus + '₺');
-                location.reload();
             } else {
                 alert(data.message);
             }
+        })
+        .catch(err => {
+            alert('Bir hata oluştu: ' + err);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         });
     }
 }
