@@ -223,11 +223,13 @@ $stmt->closeCursor();
                 <div class="card-body">
                     <?php
                     $stmtSehir = $pdo->query("
-                        SELECT t.sehir, COUNT(r.rezervasyon_id) as toplam
+                        SELECT se.sehir_adi as sehir, COUNT(r.rezervasyon_id) as toplam
                         FROM Rezervasyonlar r
                         JOIN Sahalar s ON r.saha_id = s.saha_id
                         JOIN Tesisler t ON s.tesis_id = t.tesis_id
-                        GROUP BY t.sehir
+                        JOIN Ilceler i ON t.ilce_id = i.ilce_id
+                        JOIN Sehirler se ON i.sehir_id = se.sehir_id
+                        GROUP BY se.sehir_adi
                         ORDER BY toplam DESC
                         LIMIT 5
                     ");
@@ -260,8 +262,10 @@ $stmt->closeCursor();
                 <div class="card-body">
                     <?php
                     $stmtPopuler = $pdo->query("
-                        SELECT t.tesis_adi, t.sehir, COUNT(r.rezervasyon_id) as rez_sayisi
+                        SELECT t.tesis_adi, se.sehir_adi as sehir, COUNT(r.rezervasyon_id) as rez_sayisi
                         FROM Tesisler t
+                        JOIN Ilceler i ON t.ilce_id = i.ilce_id
+                        JOIN Sehirler se ON i.sehir_id = se.sehir_id
                         LEFT JOIN Sahalar s ON t.tesis_id = s.tesis_id
                         LEFT JOIN Rezervasyonlar r ON s.saha_id = r.saha_id
                         WHERE r.durum != 'iptal'

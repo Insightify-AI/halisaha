@@ -1,11 +1,54 @@
 <?php
 require_once 'includes/db.php';
-session_start();
+// session_start(); // db.php içinde başlatılıyor
 
 // Sadece POST isteği ile gelindiyse çalış
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_SESSION['kullanici_id'])) {
     
     $musteri_id = $_SESSION['kullanici_id']; // Sadece Müşteriler rezervasyon yapabilir
+    $rol = $_SESSION['rol'] ?? 'musteri';
+
+    // 1. ROL KONTROLÜ: Saha Sahibi veya Admin rezervasyon yapamaz
+    if ($rol == 'tesis_sahibi' || $rol == 'admin') {
+        echo "<!DOCTYPE html>
+        <html lang='tr'>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Yetkisiz İşlem</title>
+            <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>
+            <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'>
+        </head>
+        <body class='bg-light d-flex align-items-center justify-content-center' style='height: 100vh;'>
+            <div class='text-center'>
+                <div class='mb-4'>
+                    <span class='fa-stack fa-4x'>
+                        <i class='fas fa-circle fa-stack-2x text-danger'></i>
+                        <i class='fas fa-user-shield fa-stack-1x fa-inverse'></i>
+                    </span>
+                </div>
+                <h1 class='text-danger fw-bold'>İşlem Kısıtlandı!</h1>
+                <p class='lead mt-3'>Saha sahipleri ve yöneticiler sistem üzerinden<br>doğrudan saha kiralama işlemi gerçekleştiremez.</p>
+                
+                <div class='alert alert-warning d-inline-block mt-3' style='max-width: 500px;'>
+                    <i class='fas fa-info-circle me-2'></i>
+                    Rezervasyon yapmak için lütfen <strong>Müşteri</strong> hesabı ile giriş yapınız.
+                </div>
+
+                <div class='mt-4'>
+                    <a href='index.php' class='btn btn-outline-secondary btn-lg me-2'>
+                        <i class='fas fa-home me-2'></i>Anasayfa
+                    </a>
+                    <a href='logout.php' class='btn btn-danger btn-lg'>
+                        <i class='fas fa-sign-out-alt me-2'></i>Çıkış Yap
+                    </a>
+                </div>
+            </div>
+        </body>
+        </html>";
+        exit;
+    }
+
     $saha_id = $_POST['saha_id'];
     $saat_id = $_POST['saat_id'];
     $tarih = $_POST['tarih'];

@@ -1,7 +1,7 @@
 <?php
 require_once 'includes/db.php';
 require_once 'includes/QuestService.php';
-session_start();
+// session_start(); // db.php içinde başlatılıyor
 
 header('Content-Type: application/json');
 

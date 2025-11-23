@@ -1,4 +1,9 @@
 <?php
+// Session'ı başlat (eğer başlatılmamışsa)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Veritabanı Ayarları
 $host = 'localhost';
 $dbname = 'halisaha_db';
