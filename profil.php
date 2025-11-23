@@ -74,9 +74,18 @@ if ($rol == 'tesis_sahibi') {
             <div class="col-md-4 mb-4">
                 <div class="card shadow-sm border-0 text-center p-4">
                     <div class="mb-3">
-                        <div class="profile-logo mx-auto">
-                            <i class="fas fa-building"></i>
-                        </div>
+                        <?php
+                        // İlk ismin baş harfi + Soyadın baş harfi (örn: Fatih Ahmet Korkmaz → FK)
+                        $firstInitial = mb_substr($user['ad'], 0, 1, 'UTF-8');
+                        $lastInitial = mb_substr($user['soyad'], 0, 1, 'UTF-8');
+                        $initials = $firstInitial . $lastInitial;
+                        $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($initials) 
+                                   . "&size=120&background=198754&color=fff&bold=true&font-size=0.5";
+                        ?>
+                        <img src="<?php echo $avatarUrl; ?>" 
+                             alt="<?php echo htmlspecialchars($user['ad']); ?>" 
+                             class="rounded-circle shadow" 
+                             style="width: 100px; height: 100px; border: 3px solid #198754;">
                     </div>
                     <h4 class="fw-bold"><?php echo htmlspecialchars($user['ad'] . ' ' . $user['soyad']); ?></h4>
                     <p class="text-muted mb-1"><?php echo $user['eposta']; ?></p>
@@ -297,9 +306,18 @@ if ($rol == 'musteri') {
         <div class="col-md-4 mb-4">
             <div class="card shadow-sm border-0 text-center p-4">
                 <div class="mb-3">
-                    <div class="profile-logo mx-auto">
-                        <i class="fas fa-futbol"></i>
-                    </div>
+                    <?php
+                    // İlk ismin baş harfi + Soyadın baş harfi (örn: Fatih Ahmet Korkmaz → FK)
+                    $firstInitial = mb_substr($user['ad'], 0, 1, 'UTF-8');
+                    $lastInitial = mb_substr($user['soyad'], 0, 1, 'UTF-8');
+                    $initials = $firstInitial . $lastInitial;
+                    $avatarUrl = "https://ui-avatars.com/api/?name=" . urlencode($initials) 
+                               . "&size=120&background=0d6efd&color=fff&bold=true&font-size=0.5";
+                    ?>
+                    <img src="<?php echo $avatarUrl; ?>" 
+                         alt="<?php echo htmlspecialchars($user['ad']); ?>" 
+                         class="rounded-circle shadow" 
+                         style="width: 100px; height: 100px; border: 3px solid #0d6efd;">
                 </div>
                 <h4 class="fw-bold"><?php echo htmlspecialchars($user['ad'] . ' ' . $user['soyad']); ?></h4>
                 <p class="text-muted mb-1"><?php echo $user['eposta']; ?></p>

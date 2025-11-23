@@ -59,15 +59,15 @@ if (session_status() === PHP_SESSION_NONE) {
                     <span class="badge bg-warning text-dark ms-1"><?php echo ucfirst($_SESSION['rol']); ?></span>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="profil.php">Profilim</a></li>
+                    <li><a class="dropdown-item" href="profil.php"><i class="fas fa-user me-2 text-primary"></i>Profilim</a></li>
                     <li><a class="dropdown-item" href="cuzdan.php"><i class="fas fa-wallet me-2 text-success"></i>Cüzdanım</a></li>
                     <?php if($_SESSION['rol'] == 'admin'): ?>
-                        <li><a class="dropdown-item" href="admin_panel.php">Yönetim Paneli</a></li>
+                        <li><a class="dropdown-item" href="admin_panel.php"><i class="fas fa-tachometer-alt me-2 text-danger"></i>Yönetim Paneli</a></li>
                     <?php elseif($_SESSION['rol'] == 'tesis_sahibi'): ?>
-                        <li><a class="dropdown-item" href="tesislerim.php">Tesislerim</a></li>
+                        <li><a class="dropdown-item" href="tesislerim.php"><i class="fas fa-building me-2 text-info"></i>Tesislerim</a></li>
                     <?php endif; ?>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="logout.php">Çıkış Yap</a></li>
+                    <li><a class="dropdown-item text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Çıkış Yap</a></li>
                 </ul>
             </li>
         <?php else: ?>
