@@ -1,7 +1,6 @@
 <?php
 require_once 'includes/db.php';
 
-
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['kullanici_id'])) {
@@ -23,17 +22,18 @@ try {
         // Bonus Hesaplama
         $bonus = 0;
         if ($tutar >= 1000) {
-            $bonus = $tutar * 0.20; // %20 Bonus
+            $bonus = $tutar * 0.20;
         } elseif ($tutar >= 500) {
-            $bonus = $tutar * 0.15; // %15 Bonus
+            $bonus = $tutar * 0.15;
         } elseif ($tutar >= 250) {
-            $bonus = $tutar * 0.12; // %12 Bonus
+            $bonus = $tutar * 0.12;
         } elseif ($tutar >= 100) {
-            $bonus = $tutar * 0.10; // %10 Bonus
+            $bonus = $tutar * 0.10;
         }
 
         $toplam_yuklenecek = $tutar + $bonus;
 
+        // Transaction Başlat
         $pdo->beginTransaction();
 
         // Bakiyeyi Güncelle
@@ -50,17 +50,19 @@ try {
             $stmt->execute([$kullanici_id, $bonus, "Yükleme Bonusu"]);
         }
 
+        // DEĞİŞİKLİKLERİ ONAYLA (Veritabanına İşle)
+        $pdo->commit();
+
         // Güncel bakiyeyi çek
         $stmt = $pdo->prepare("SELECT bakiye FROM Kullanicilar WHERE kullanici_id = ?");
         $stmt->execute([$kullanici_id]);
         $guncel_bakiye = $stmt->fetchColumn();
 
-        // Yeni bakiye ve bonus formatlı
         $yeni_bakiye_fmt = number_format($guncel_bakiye, 2);
         $bonus_fmt = number_format($bonus, 2);
         $tarih_fmt = date('d.m.Y H:i');
 
-        // Yeni işlem satırı HTML'i oluştur
+        // Yeni işlem satırı HTML
         $new_row_html = '
         <tr class="table-success">
             <td class="ps-4">
@@ -110,32 +112,44 @@ try {
         ]);
 
     } elseif ($action === 'sanal_kart_olustur') {
-        // Sanal Kart Kontrolü
-        $stmt = $pdo->prepare("SELECT * FROM SanalKartlar WHERE kullanici_id = ?");
+
+        // DÜZELTME 1: 'id' yerine 'kart_id' kullanıldı
+        $stmt = $pdo->prepare("SELECT kart_id FROM SanalKartlar WHERE kullanici_id = ?");
         $stmt->execute([$kullanici_id]);
         if ($stmt->rowCount() > 0) {
             throw new Exception("Zaten bir sanal kartınız var.");
         }
 
-        // Rastgele Kart Bilgileri Oluştur
+        // İYİLEŞTİRME: İşlem bütünlüğü için Transaction başlatıldı
+        $pdo->beginTransaction();
+
         $kart_no = '5' . rand(100, 999) . ' ' . rand(1000, 9999) . ' ' . rand(1000, 9999) . ' ' . rand(1000, 9999);
         $son_kullanim = date('m/y', strtotime('+5 years'));
         $cvv = rand(100, 999);
 
+        // Kartı Oluştur
         $stmt = $pdo->prepare("INSERT INTO SanalKartlar (kullanici_id, kart_numarasi, son_kullanma_tarihi, cvv) VALUES (?, ?, ?, ?)");
         $stmt->execute([$kullanici_id, $kart_no, $son_kullanim, $cvv]);
 
-        // İlk Kart Bonusu (Opsiyonel)
+        // İlk Kart Bonusu
         $ilk_bonus = 50.00;
         $stmt = $pdo->prepare("UPDATE Kullanicilar SET bakiye = bakiye + ? WHERE kullanici_id = ?");
         $stmt->execute([$ilk_bonus, $kullanici_id]);
 
+        // Bonus Logu
         $stmt = $pdo->prepare("INSERT INTO CuzdanHareketleri (kullanici_id, islem_tipi, tutar, aciklama) VALUES (?, 'bonus', ?, ?)");
         $stmt->execute([$kullanici_id, $ilk_bonus, "Sanal Kart Oluşturma Bonusu"]);
 
+        // İYİLEŞTİRME: İşlemleri onayla
+        $pdo->commit();
+
+        // Güncel bakiyeyi çek (Ekranda göstermek için)
+        $stmt = $pdo->prepare("SELECT bakiye FROM Kullanicilar WHERE kullanici_id = ?");
+        $stmt->execute([$kullanici_id]);
+        $guncel_bakiye = $stmt->fetchColumn();
+
         $tarih_fmt = date('d.m.Y H:i');
         
-        // Yeni işlem satırı HTML'i (Bonus için)
         $new_row_html = '
         <tr class="table-warning">
             <td class="ps-4">
@@ -160,7 +174,7 @@ try {
             'message' => 'Sanal kartınız oluşturuldu ve 50₺ bonus yüklendi!',
             'kart_no' => $kart_no,
             'son_kullanim' => $son_kullanim,
-            'yeni_bakiye' => number_format($ilk_bonus, 2), // Assuming initial balance was 0 or we need to fetch current balance. For now let's assume we just add bonus. Ideally we should return total balance.
+            'yeni_bakiye' => number_format($guncel_bakiye, 2),
             'new_row_html' => $new_row_html
         ]);
 
@@ -169,6 +183,7 @@ try {
     }
 
 } catch (Exception $e) {
+    // Hata durumunda yapılan işlemleri geri al
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
