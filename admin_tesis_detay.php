@@ -18,6 +18,8 @@ $tesis_id = (int)$_GET['id'];
 // İŞLEM (Onay/Red)
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $durum = ($_POST['islem'] == 'onayla') ? 1 : 2; 
+    
+    // Tesis durumunu güncelle
     $stmt = $pdo->prepare("CALL sp_AdminTesisDurumGuncelle(?, ?)");
     $stmt->execute([$tesis_id, $durum]);
     
@@ -27,14 +29,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // VERİLERİ ÇEK
-// 1. Temel Bilgiler
-$stmt = $pdo->prepare("CALL sp_TesisDetayGetir(?)");
+// 1. Temel Bilgiler (DÜZELTİLEN KISIM: Stored Procedure yerine Admin özel sorgusu)
+// Bu sorgu onay_durumu fark etmeksizin tesisi getirir.
+$stmt = $pdo->prepare("
+    SELECT 
+        t.*, 
+        i.ilce_adi, 
+        s.sehir_adi, 
+        k.ad AS sahip_ad, 
+        k.soyad AS sahip_soyad, 
+        k.telefon AS sahip_telefon
+    FROM Tesisler t
+    JOIN Ilceler i ON t.ilce_id = i.ilce_id
+    JOIN Sehirler s ON i.sehir_id = s.sehir_id
+    JOIN Kullanicilar k ON t.tesis_sahibi_id = k.kullanici_id
+    WHERE t.tesis_id = ?
+");
 $stmt->execute([$tesis_id]);
 $tesis = $stmt->fetch();
 $stmt->closeCursor();
 
 if (!$tesis) {
-    echo "Tesis bulunamadı.";
+    echo "<div class='container mt-5'><div class='alert alert-danger'>Tesis bulunamadı (ID: $tesis_id).</div></div>";
+    include 'includes/footer.php';
     exit;
 }
 
@@ -52,7 +69,6 @@ $stmt->closeCursor();
     </div>
 
     <div class="row">
-        <!-- SOL: Resim ve Bilgiler -->
         <div class="col-md-8">
             <div class="card shadow-sm border-0 mb-4">
                 <?php $resim = !empty($tesis['kapak_resmi']) ? $tesis['kapak_resmi'] : 'https://via.placeholder.com/800x400'; ?>
@@ -72,7 +88,6 @@ $stmt->closeCursor();
                 </div>
             </div>
 
-            <!-- Özellikler -->
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white fw-bold">Tesis İmkanları</div>
                 <div class="card-body">
@@ -90,14 +105,13 @@ $stmt->closeCursor();
             </div>
         </div>
 
-        <!-- SAĞ: İşlem Paneli -->
         <div class="col-md-4">
             <div class="card shadow border-0 sticky-top" style="top: 20px;">
                 <div class="card-header bg-warning text-dark fw-bold">
                     <i class="fas fa-cog me-2"></i>Yönetici İşlemleri
                 </div>
                 <div class="card-body">
-                    <p><strong>Tesis Sahibi:</strong> <?php echo $tesis['ad'] . ' ' . $tesis['soyad']; ?></p>
+                    <p><strong>Tesis Sahibi:</strong> <?php echo $tesis['sahip_ad'] . ' ' . $tesis['sahip_soyad']; ?></p>
                     <p><strong>Sahip Tel:</strong> <?php echo $tesis['sahip_telefon']; ?></p>
                     <p><strong>Şu Anki Durum:</strong> 
                         <?php if($tesis['onay_durumu'] == 0): ?>
