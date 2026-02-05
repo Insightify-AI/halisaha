@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     if (empty($il_adi) || empty($ilce_adi) || empty($ad) || empty($adres)) {
         $mesaj = "<div class='alert alert-danger'>Lütfen zorunlu alanları doldurun.</div>";
-    } else if (!isset($mesaj)) { // Dosya upload hatası yoksa devam et
+    } else if (empty($mesaj) || strpos($mesaj, 'alert-danger') === false) { // Dosya upload hatası yoksa devam et
         try {
             // 1. Şehir kontrolü ve ekleme
             $stmt = $pdo->prepare("SELECT sehir_id FROM Sehirler WHERE sehir_adi = ?");

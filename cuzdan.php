@@ -273,6 +273,7 @@ function sanalKartOlustur() {
                 }
 
                 alert(data.message);
+                location.reload();
                 // Sayfayı yenilemeye gerek yok artık
             } else {
                 alert(data.message);
