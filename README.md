@@ -1,122 +1,252 @@
-# 🏟️ Halı Saha Rezervasyon Sistemi
+# 🏟️ Halı Saha Rezervasyon & Yönetim Sistemi
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-blue)
-![MySQL](https://img.shields.io/badge/MySQL-8.0-orange)
-![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple)
+<div align="center">
+  <img src="screenshots/Giriş sayfası.png" alt="Ana Sayfa" width="800">
+  <br><br>
 
-Modern, kullanıcı dostu ve kapsamlı bir halı saha yönetim ve rezervasyon platformu. Bu proje, halı saha tutkunlarını tesis sahipleriyle buluştururken, oyunlaştırma ve sosyal özelliklerle deneyimi zenginleştirmeyi hedefler.
+  [![Lisans](https://img.shields.io/badge/Lisans-MIT-yellow.svg)](LICENSE)
+  [![PHP](https://img.shields.io/badge/PHP-8.0%2B-blue)](https://www.php.net/)
+  [![MySQL](https://img.shields.io/badge/MySQL-8.0-orange)](https://www.mysql.com/)
+  [![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-purple)](https://getbootstrap.com/)
+  [![Durum](https://img.shields.io/badge/Durum-Aktif-success)]()
+
+  <p>
+    <b>Modern, kullanıcı dostu ve kapsamlı bir halı saha yönetim platformu.</b><br>
+    Tesis sahiplerini oyuncularla buluştururken, oyunlaştırma ve sosyal özelliklerle deneyimi zenginleştirir.
+  </p>
+</div>
+
+---
 
 ## 🌟 Öne Çıkan Özellikler
 
-### 👥 Müşteri Paneli
-*   **🔍 Gelişmiş Arama:** Şehir ve ilçe bazlı filtreleme ile size en yakın halı sahaları anında bulun.
-*   **📅 Kolay Rezervasyon:** Tesislerin müsaitlik durumunu takvim üzerinde görüntüleyin ve saniyeler içinde rezervasyon yapın.
-*   **💳 Cüzdan & Sanal Kart:**
-    *   Kullanıcıya özel cüzdan sistemi.
-    *   Bakiye yükleme ve harcama takibi.
-    *   **Bonus Sistemi:** Yüklemelerde ekstra bonus kazanma fırsatı.
-*   **🏆 Oyunlaştırma (Gamification):**
-    *   **Görevler:** "İlk Rezervasyon", "Yorum Yap" gibi görevleri tamamlayın.
-    *   **Rozetler:** Başarılarınızı profilinizde sergileyin (Örn: Gol Kralı, Sadık Müşteri).
-    *   **Liderlik Tablosu:** En aktif kullanıcılar arasında yerinizi alın.
-*   **💬 Sosyal Etkileşim:**
-    *   Tesisleri puanlayın ve yorum yapın.
-    *   Diğer kullanıcıların yorumlarını beğenin/beğenmeyin.
-    *   Favori tesislerinizi listenize ekleyin.
-*   **🌤️ Hava Durumu Entegrasyonu:** Maç yapacağınız günün hava durumunu tesis detay sayfasında görün.
+Bu proje, sadece bir rezervasyon sistemi değil, tam teşekküllü bir **spor ekosistemidir**.
 
-### 🏢 Tesis Sahibi Paneli
-*   **🏟️ Tesis Yönetimi:** Tesis bilgileri, fotoğraflar, özellikler (Duş, Otopark, WiFi vb.) ve konum ekleme.
-*   **⚽ Saha & Fiyatlandırma:** Farklı zemin türleri ve saatlik ücretlendirme seçenekleri.
-*   **✅ Rezervasyon Takibi:** Gelen rezervasyon taleplerini onaylayın veya reddedin.
-*   **🗣️ Yorum Yönetimi:** Müşteri yorumlarına kurumsal yanıtlar verin.
+### 👤 Oyuncular İçin
+*   **🔍 Akıllı Arama:** İlçe, fiyat ve özelliklere göre en uygun sahaları bulun.
+*   **📅 Hızlı Rezervasyon:** Anlık müsaitlik takvimi üzerinden saniyeler içinde yerinizi ayırtın.
+*   **💳 Dijital Cüzdan:** Bakiye yükleyin, harcamalarınızı yönetin ve **Bonus** kazanın.
+*   **🎮 Oyunlaştırma (Gamification):**
+    *   Günlük ve haftalık görevleri tamamlayın.
+    *   Rozetler kazanın (Gol Kralı, Sadık Müşteri vb.).
+    *   Liderlik tablosunda üst sıralara tırmanın.
+*   **💬 Sosyal Arayüz:** Yorum yapın, puan verin ve favori sahalarınızı listeleyin.
 
-### 🛡️ Admin (Yönetici) Paneli
-*   **📊 Dashboard:** Toplam üye, tesis, rezervasyon ve ciro istatistiklerini tek ekranda görün.
-*   **👥 Kullanıcı Yönetimi:** Tüm kullanıcıların detaylı profillerini, harcamalarını ve aktivitelerini inceleyin.
-*   **📈 Raporlama:** Şehir bazlı rezervasyon dağılımı ve finansal raporlar.
-*   **⚙️ İçerik Yönetimi:** Tesis onaylama, yorum denetimi ve sistem ayarları.
+### 🏢 Tesis Sahipleri İçin
+*   **📊 Yönetim Paneli:** Tesislerinizi, sahalarınızı ve fiyatlarınızı kolayca yönetin.
+*   **✅ Rezervasyon Onayı:** Gelen talepleri tek tıkla onaylayın veya reddedin.
+*   **📈 Analiz:** Doluluk oranlarını ve müşteri geri bildirimlerini takip edin.
+
+### 🛡️ Admin (Yönetici) Modülü
+*   **Sistem Kontrolü:** Tüm kullanıcıları, tesisleri ve finansal hareketleri denetleyin.
+*   **Raporlama:** Şehir bazlı kullanım ve gelir raporlarına erişin.
+
+---
+
+## 📸 Ekran Görüntüleri ve Görsel Tur
+
+Projeyi keşfetmek için aşağıdaki kategorilere tıklayarak ekran görüntülerini inceleyebilirsiniz.
+
+<details>
+<summary><b>🏟️ Saha Keşfi ve Arama (Tıklayın)</b></summary>
+<br>
+<table>
+  <tr>
+    <td width="50%">
+      <b>İstanbul Halı Sahaları</b><br>
+      Tüm sahaları harita veya liste görünümünde inceleyin.<br>
+      <img src="screenshots/İstanbul halı sahaları.png" width="100%">
+    </td>
+    <td width="50%">
+      <b>Saha Detayı</b><br>
+      Tesis özelliklerini, fotoğraflarını ve yorumlarını görün.<br>
+      <img src="screenshots/Örnek saha.png" width="100%">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <b>Müsait Sahalar</b><br>
+      Anlık boş saatleri görüntüleyin.<br>
+      <img src="screenshots/Müsait sahalar.png" width="100%">
+    </td>
+    <td width="50%">
+      <b>Haftanın Popüler Sahaları</b><br>
+      En çok tercih edilen sahaları keşfedin.<br>
+      <img src="screenshots/Haftanın popüler sahaları.png" width="100%">
+    </td>
+  </tr>
+</table>
+</details>
+
+<details>
+<summary><b>📅 Rezervasyon ve Cüzdan İşlemleri (Tıklayın)</b></summary>
+<br>
+<table>
+  <tr>
+    <td width="50%">
+      <b>Rezervasyon Oluşturma</b><br>
+      Kolay arayüz ile hızlıca rezervasyon yapın.<br>
+      <img src="screenshots/Rezervasyon oluşturma.png" width="100%">
+    </td>
+    <td width="50%">
+      <b>Bakiye Yükleme</b><br>
+      Güvenli ödeme ve cüzdan yönetimi.<br>
+      <img src="screenshots/Bakiye yükleme.png" width="100%">
+    </td>
+  </tr>
+</table>
+</details>
+
+<details>
+<summary><b>🎮 Oyunlaştırma ve Görevler (Tıklayın)</b></summary>
+<br>
+<table>
+  <tr>
+    <td width="50%">
+      <b>Günlük Görevler</b><br>
+      Günlük aktivitelerle puan kazanın.<br>
+      <img src="screenshots/Günlük görevler.png" width="100%">
+    </td>
+    <td width="50%">
+      <b>Haftalık Görevler</b><br>
+      Daha büyük ödüller için zorlu görevleri tamamlayın.<br>
+      <img src="screenshots/Haftalık görevler.png" width="100%">
+    </td>
+  </tr>
+</table>
+</details>
+
+<details>
+<summary><b>⚙️ Yönetim Panelleri (Tıklayın)</b></summary>
+<br>
+<table>
+  <tr>
+    <td width="50%">
+      <b>Admin Paneli</b><br>
+      Sistemin genel durumu ve istatistikler.<br>
+      <img src="screenshots/Admin paneli.png" width="100%">
+    </td>
+    <td width="50%">
+      <b>Tesis Yönetim Paneli</b><br>
+      Tesis sahipleri için kontrol merkezi.<br>
+      <img src="screenshots/Tesis yönetim paneli.png" width="100%">
+    </td>
+  </tr>
+    <tr>
+    <td width="50%">
+      <b>Kullanıcı Sayfası</b><br>
+      Kullanıcıların profil ve etkinlik geçmişi.<br>
+      <img src="screenshots/Kullanıcı sayfası.png" width="100%">
+    </td>
+    <td width="50%">
+      <b>Tesis Sahibi Paneli</b><br>
+      Detaylı tesis yönetimi.<br>
+      <img src="screenshots/Tesis sahibi paneli.png" width="100%">
+    </td>
+  </tr>
+</table>
+</details>
+
+---
 
 ## 🚀 Teknoloji Yığını
 
-Bu proje, performans ve sürdürülebilirlik odaklı modern web teknolojileri kullanılarak geliştirilmiştir.
+| Bileşen | Teknoloji | Açıklama |
+| :--- | :--- | :--- |
+| **Backend** | ![PHP](https://img.shields.io/badge/-PHP-777BB4?style=flat&logo=php&logoColor=white) | PHP 8.x, PDO, OOP Mimarisi |
+| **Veritabanı** | ![MySQL](https://img.shields.io/badge/-MySQL-4479A1?style=flat&logo=mysql&logoColor=white) | İlişkisel Tasarım, Stored Procedures |
+| **Frontend** | ![HTML5](https://img.shields.io/badge/-HTML5-E34F26?style=flat&logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/-CSS3-1572B6?style=flat&logo=css3&logoColor=white) | Modern ve Responsive Tasarım |
+| **UI Framework** | ![Bootstrap](https://img.shields.io/badge/-Bootstrap-563D7C?style=flat&logo=bootstrap&logoColor=white) | Hızlı ve esnek arayüz geliştirme |
+| **Scripting** | ![JavaScript](https://img.shields.io/badge/-JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black) | Dinamik etkileşimler ve AJAX |
 
-| Alan | Teknoloji |
-|---|---|
-| **Backend** | PHP 8.x (PDO, OOP Mimarisi) |
-| **Veritabanı** | MySQL (İlişkisel Veritabanı Tasarımı, Stored Procedures) |
-| **Frontend** | HTML5, CSS3, JavaScript (ES6+) |
-| **UI Framework** | Bootstrap 5 |
-| **İkon Seti** | FontAwesome 6 |
-| **Veri İletişimi** | AJAX (Asenkron Veri İşleme) |
+---
 
-## 🛠️ Kurulum Adımları
+## 🛠️ Kurulum ve Başlangıç
 
-Projeyi yerel makinenizde veya sunucunuzda çalıştırmak için aşağıdaki adımları izleyin:
+Bu projeyi kendi ortamınızda çalıştırmak için aşağıdaki adımları takip edin.
 
-1.  **Dosyaları Kopyalayın:** Proje dosyalarını web sunucunuzun (Apache/Nginx) kök dizinine (`www` veya `htdocs`) taşıyın.
-2.  **Veritabanını Oluşturun:**
-    *   MySQL'de yeni bir veritabanı oluşturun (Örn: `halisaha_db`).
-    *   `halisaha_db (7).sql` dosyasını içe aktarın (Import).
-3.  **Bağlantı Ayarları:**
-    *   `includes/db.php` dosyasını açın.
-    *   Veritabanı bilgilerinizi (host, dbname, user, password) güncelleyin.
-    ```php
-    $host = 'localhost';
-    $dbname = 'halisaha_db';
-    $username = 'root';
-    $password = '';
-    ```
-4.  **Çalıştırın:** Tarayıcınızda `http://localhost/halisaha` adresine gidin.
+### Gereksinimler
+*   PHP 8.0 veya üzeri
+*   MySQL Veritabanı
+*   Apache/Nginx Web Sunucusu (XAMPP, WAMP, MAMP önerilir)
+
+### Adım Adım Kurulum
+
+1.  **Depoyu İndirin:**
+    Dosyaları web sunucunuzun kök dizinine (`www` veya `htdocs`) kopyalayın.
+
+2.  **Veritabanı Kurulumu:**
+    *   `phpMyAdmin` veya bir SQL istemcisi açın.
+    *   Yeni bir veritabanı oluşturun (Örn: `halisaha_db`).
+    *   Proje klasöründeki SQL dosyasını (`halisaha_db.sql` veya en güncel sürüm) içe aktarın.
+
+3.  **Yapılandırma:**
+    *   `includes/db.php` dosyasını bir metin editörü ile açın.
+    *   Veritabanı bağlantı ayarlarını kendi sunucunuza göre düzenleyin:
+        ```php
+        $host = 'localhost';
+        $dbname = 'halisaha_db';
+        $username = 'root';
+        $password = '';
+        ```
+
+4.  **Çalıştırın!**
+    *   Tarayıcınızı açın ve `http://localhost/halisaha` adresine gidin.
+    *   **Yönetici Girişi:** (Varsayılan kullanıcı bilgileri veritabanında mevcuttur veya `admin` tablosunu kontrol edin).
+
+> [!WARNING]
+> **Veritabanı Hakkında Not:** Projede kullanılan veritabanı dosyası (`halisaha_db.sql`), içerisinde gerçek kullanıcılara ait kişisel veriler olduğu için güvenlik ve gizlilik nedeniyle bu repoya **dahil edilmemiştir**. Projeyi test etmek için kendi yerel veritabanınızı oluşturabilir veya örnek veri setleri ile tabloları yapılandırabilirsiniz.
+
+---
 
 ## 📂 Proje Yapısı
 
-```
+```bash
 halisaha/
-├── 📂 assets/          # CSS, JS ve Resim dosyaları
-├── 📂 includes/        # Veritabanı bağlantısı, Header, Footer vb. parçalar
-├── 📂 uploads/         # Kullanıcı ve tesis resimleri
-├── 📄 index.php        # Anasayfa
-├── 📄 login.php        # Giriş sayfası
-├── 📄 register.php     # Kayıt sayfası
-├── 📄 profil.php       # Kullanıcı profili
-├── 📄 tesis_detay.php  # Tesis detay ve rezervasyon sayfası
-├── 📄 cuzdan.php       # Cüzdan ve bakiye işlemleri
-├── 📄 admin_panel.php  # Yönetici paneli
-└── 📄 README.md        # Proje dokümantasyonu
-```
-
-## 🤝 Katkıda Bulunma (Contributing)
-
-Katkılarınızı bekliyoruz! Projeyi geliştirmek için şu adımları izleyebilirsiniz:
-
-1.  Bu depoyu (repository) forklayın.
-2.  Yeni bir özellik dalı (feature branch) oluşturun (`git checkout -b yeni-ozellik`).
-3.  Değişikliklerinizi yapın ve commitleyin (`git commit -m 'Yeni özellik eklendi'`).
-4.  Dalınızı (branch) gönderin (`git push origin yeni-ozellik`).
-5.  Bir Pull Request (PR) oluşturun.
-
-## 📄 Lisans (License)
-
-Bu proje **MIT Lisansı** altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakabilirsiniz.
-
-```text
-MIT License
-
-Copyright (c) 2025 Halı Saha Rezervasyon Sistemi
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+├── 📂 assets/          # Stil (CSS), Script (JS) ve Resim dosyaları
+├── 📂 include/         # Çekirdek PHP dosyaları (Veritabanı, Header, Footer)
+├── 📂 screenshots/     # Proje tanıtım görselleri
+├── index.php           # Ana karşılama sayfası
+├── login.php           # Kullanıcı giriş modülü
+├── register.php        # Kayıt olma modülü
+├── profil.php          # Kullanıcı profil yönetimi
+├── tesis_detay.php     # Saha detay ve rezervasyon sayfası
+├── cuzdan.php          # Bakiye ve finans işlemleri
+├── admin_panel.php     # Yönetici kontrol merkezi
+└── README.md           # Proje dokümantasyonu
 ```
 
 ---
 
-✨ **Halı Saha Rezervasyon Sistemi** ile maç keyfini bir üst seviyeye taşıyın!
+## 🤝 Katkıda Bulunma
+
+Açık kaynak dünyasını seviyoruz! Katkıda bulunmak isterseniz:
+
+1.  Projeyi **fork**layın.
+2.  Yeni bir **branch** oluşturun (`git checkout -b feature/yeni-ozellik`).
+3.  Değişikliklerinizi **commit**leyin (`git commit -m 'Harika bir özellik ekledim'`).
+4.  Branch'inizi **push**layın (`git push origin feature/yeni-ozellik`).
+5.  Bir **Pull Request** açın.
+
+---
+
+## 📄 Lisans
+
+Bu proje **MIT Lisansı** ile lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına göz atabilirsiniz.
+
+---
+
+## 👥 Katkıda Bulunanlar
+
+Bu projede emeği geçenler:
+
+*   **Fatih Korkmaz**
+*   **Muhammed Emin Başar**
+*   **Murat Efe Nalbant**
+*   **Yusuf Dünya**
+
+---
+
+<div align="center">
+  <b>🌟 Beğendiyseniz yıldız vermeyi unutmayın!</b>
+</div>
