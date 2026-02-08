@@ -241,7 +241,7 @@ Bu proje **MIT Lisansı** ile lisanslanmıştır. Detaylar için [LICENSE](LICEN
 Bu projede emeği geçenler:
 
 *   **Fatih Korkmaz**
-*   **Muhammed Emin Başar**
+*   **Muhammet Emin Başar**
 *   **Murat Efe Nalbant**
 *   **Yusuf Dünya**
 
